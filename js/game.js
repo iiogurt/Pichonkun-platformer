@@ -2,6 +2,7 @@
 'use strict';
 const VIEW_W = 384, VIEW_H = 216, RES = 2;
 const SAVE_KEY = 'pichonkun_save_v1';
+const GAME_VERSION = '1.0.0';
 
 // ================================================================== INPUT
 const Input = (() => {
@@ -42,10 +43,10 @@ function loadSave() {
   try {
     const s = JSON.parse(localStorage.getItem(SAVE_KEY));
     if (s && typeof s.unlocked === 'number') return Object.assign(defaultSave(), s);
-  } catch (e) { /* ignore */ }
+  } catch { /* corrupt or unavailable storage: start fresh */ }
   return defaultSave();
 }
-function writeSave(s) { try { localStorage.setItem(SAVE_KEY, JSON.stringify(s)); } catch (e) { /* ignore */ } }
+function writeSave(s) { try { localStorage.setItem(SAVE_KEY, JSON.stringify(s)); } catch { /* storage full or blocked */ } }
 
 // ================================================================= GLOWS
 const GLOW_CACHE = new Map();
@@ -659,21 +660,20 @@ class Game {
       this.panel(20, 24, VIEW_W - 40, h, 0.88);
       lines.forEach((l, i) => FONT.draw(ctx, l, 28, 30 + i * 10, '#ffe680'));
     }
-    if (Input.is('mute') || this.t < 0) { /* noop */ }
   }
 
   drawSaveIcon() {
     const ctx = this.ctx;
     const a = Math.min(1, this.saveFlash / 30);
     ctx.globalAlpha = a;
-    const x = VIEW_W - 92, y = 20;
-    ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(x - 2, y - 2, 90, 14);
+    const label = 'SAVED: ' + this.saveLabel;
+    const bw = FONT.measure(label) + 20, x = VIEW_W - bw - 4, y = 20;
+    ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(x - 2, y - 2, bw, 14);
     // floppy
     ctx.fillStyle = '#1565d8'; ctx.fillRect(x, y, 10, 10);
     ctx.fillStyle = '#ffffff'; ctx.fillRect(x + 2, y, 6, 4);
     ctx.fillStyle = '#b4b4b4'; ctx.fillRect(x + 2, y + 6, 6, 4);
-    FONT.draw(ctx, 'SAVED', x + 14, y + 2, '#7cff4f');
-    FONT.draw(ctx, this.saveLabel.length > 8 ? '' : '', x + 48, y + 2, '#fff');
+    FONT.draw(ctx, label, x + 14, y + 2, '#7cff4f');
     ctx.globalAlpha = 1;
   }
 
@@ -807,7 +807,8 @@ class Game {
       FONT.draw(ctx, 'Z / ENTER = YES      X / ESC = NO', VIEW_W / 2, 116, '#b5ecfc', { align: 'center' });
     }
     FONT.draw(ctx, 'ARROWS + Z TO SELECT', 8, VIEW_H - 12, '#ffffff', { shadow: '#000' });
-    if (this.save.finished) FONT.draw(ctx, '* GAME COMPLETED *', VIEW_W - 8, VIEW_H - 12, '#ffe680', { align: 'right', shadow: '#000' });
+    if (this.save.finished) FONT.draw(ctx, '* GAME COMPLETED *', VIEW_W - 8, VIEW_H - 22, '#ffe680', { align: 'right', shadow: '#000' });
+    FONT.draw(ctx, 'V' + GAME_VERSION, VIEW_W - 8, VIEW_H - 12, '#ffffff', { align: 'right', shadow: '#000' });
   }
 
   drawLevelSelect() {

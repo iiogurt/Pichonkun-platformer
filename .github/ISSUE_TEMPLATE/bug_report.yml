@@ -1,0 +1,41 @@
+name: Bug report
+description: Something in the game doesn't work as expected
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you see, and what did you expect instead?
+    validations:
+      required: true
+  - type: input
+    id: level
+    attributes:
+      label: Level
+      placeholder: e.g. 6 - Frosty Coils
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Start level ...
+        2. Jump onto ...
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and device
+      placeholder: e.g. Firefox 140 on Windows, Safari on iPad
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Game version
+      description: Shown in the bottom-right corner of the title screen.
+      placeholder: v1.0.0
+  - type: textarea
+    id: extra
+    attributes:
+      label: Screenshots / console errors
+      description: Browser console output (F12) helps a lot.
