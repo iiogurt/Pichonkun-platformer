@@ -1,0 +1,25 @@
+html, body {
+  margin: 0; height: 100%; background: #05081e; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  touch-action: none; user-select: none; -webkit-user-select: none;
+}
+canvas {
+  display: block;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  box-shadow: 0 0 60px rgba(28, 184, 242, 0.25);
+}
+#touch { display: none; position: fixed; inset: 0; pointer-events: none; }
+#touch.on { display: block; }
+#touch button {
+  pointer-events: auto; border: 3px solid #0d1b5e; border-radius: 50%;
+  background: rgba(28, 184, 242, 0.35); color: #fff; font: bold 14px monospace;
+  width: 64px; height: 64px; margin: 4px; -webkit-tap-highlight-color: transparent;
+}
+#touch button.down { background: rgba(181, 236, 252, 0.7); }
+#touch .pad { position: absolute; bottom: 16px; display: flex; align-items: flex-end; }
+#touch .pad.left { left: 12px; }
+#touch .pad.left button[data-a="up"] { margin-bottom: 48px; }
+#touch .pad.right { right: 12px; }
+#touch .pad.right .a { width: 76px; height: 76px; margin-bottom: 24px; }
+#touch .pause { position: absolute; top: 10px; right: 10px; width: 44px !important; height: 44px !important; }
