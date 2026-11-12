@@ -1,0 +1,33 @@
+{
+  "name": "pichonkun-platformer",
+  "version": "1.0.0",
+  "description": "Pichonkun and the Clean Air Adventure - a 10-level pixel-art platformer for the browser",
+  "scripts": {
+    "lint": "eslint .",
+    "validate": "node tools/validate-levels.js",
+    "test": "node tools/smoke-test.js",
+    "screenshots": "node tools/screenshots.js",
+    "check": "npm run lint && npm run validate && npm test",
+    "serve": "python3 -m http.server 8000"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iiogurt/Pichonkun-platformer.git"
+  },
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/iiogurt/Pichonkun-platformer/issues"
+  },
+  "homepage": "https://iiogurt.github.io/Pichonkun-platformer/",
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.14.0",
+    "globals": "^17.14.0",
+    "puppeteer-core": "^25.17.0"
+  },
+  "private": true,
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  }
+}

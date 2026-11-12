@@ -1,0 +1,59 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Check tag matches package.json and in-game version
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          PKG=$(node -p "require('./package.json').version")
+          GAMEV=$(grep -oP "GAME_VERSION = '\K[^']+" js/game.js)
+          echo "tag=$TAG package=$PKG game=$GAMEV"
+          test "$TAG" = "$PKG" && test "$TAG" = "$GAMEV"
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run validate
+      - run: npm test
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+
+      - name: Build playable zip
+        run: |
+          NAME="pichonkun-${GITHUB_REF_NAME}"
+          mkdir -p "dist/$NAME"
+          cp -r index.html style.css favicon.png js README.md LICENSE CHANGELOG.md "dist/$NAME/"
+          (cd dist && zip -qr "$NAME.zip" "$NAME")
+
+      - name: Extract release notes from CHANGELOG.md
+        run: |
+          VER="${GITHUB_REF_NAME#v}"
+          awk -v v="$VER" '
+            $0 ~ "^## \\[" v "\\]" {found=1; next}
+            found && /^## \[/ {exit}
+            found {print}
+          ' CHANGELOG.md > notes.md
+          printf '\n**Play online:** https://%s.github.io/%s/\n' "${GITHUB_REPOSITORY_OWNER}" "${GITHUB_REPOSITORY#*/}" >> notes.md
+          cat notes.md
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" "dist/pichonkun-${GITHUB_REF_NAME}.zip" \
+            --title "Pichonkun ${GITHUB_REF_NAME}" --notes-file notes.md --verify-tag
