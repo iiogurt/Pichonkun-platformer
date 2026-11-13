@@ -39,6 +39,8 @@ air clean. His journey goes through meadows and smoggy streets, into the air con
 - 🎵 **Chiptune music and sound effects**, made live with WebAudio
 - 🏆 **Score, ranks and a leaderboard**: combos for quick clean-ups, bonuses for speed and for taking no damage, an S–D rank per level and a local top-10 table to climb
 - 💎 **30 hidden air crystals** (three per level), some tucked behind **secret walls**
+- 🎖️ **18 achievements** and **5 reward skins** for Pichonkun (mint, rose, violet, gold, ember)
+- 🔥 **Hard mode**, unlocked by finishing the game: 2 hearts, tougher and faster enemies, score ×1.5
 - 💾 **Auto-save** at checkpoints and milestones, plus **Continue** and **Level Select**
 - 📱 Works with keyboard or touch controls
 
@@ -64,8 +66,10 @@ air clean. His journey goes through meadows and smoggy streets, into the air con
 | **Score tally and rank** | **Leaderboard** |
 | ![Secret room](docs/screenshots/secret-room.png) | ![Level select](docs/screenshots/level-select.png) |
 | **A secret room with an air crystal** | **Level select with ranks and crystals** |
-| ![Enter your initials](docs/screenshots/name-entry.png) | ![Ending](docs/screenshots/ending.png) |
-| **Enter your initials** | **The ending** |
+| ![Achievements](docs/screenshots/achievements.png) | ![Skins](docs/screenshots/options-skins.png) |
+| **Achievements** | **Reward skins (Options)** |
+| ![Hard mode](docs/screenshots/hard-mode.png) | ![Ending](docs/screenshots/ending.png) |
+| **Hard mode, mint skin, an achievement** | **The ending** |
 
 ## How to play
 
@@ -128,6 +132,28 @@ Secret walls look like ordinary ground but Pichonkun can walk through them. Watc
 
 The leaderboard is local: it lists the best scores made in this browser on this device.
 
+### Achievements and rewards
+
+There are 18 achievements, listed under **Achievements** on the title screen. They range from clearing the
+first level to finishing the game in hard mode. Achievements, crystals found and rewards are kept when you
+start a **New Game**.
+
+Rewards are new colours for Pichonkun, chosen under **Options → Skin**:
+
+| Skin | How to unlock |
+| --- | --- |
+| Mint | Find 10 air crystals |
+| Rose | Earn 8 achievements |
+| Violet | Finish the game |
+| Gold | Find all 30 air crystals |
+| Ember | Finish the game in hard mode |
+
+### Hard mode
+
+Finish the game once, then choose **New Game → Hard**. Pichonkun has 2 hearts instead of 3, enemies take
+one more hit, bosses have 50% more health, and both move and shoot faster. Every point is worth ×1.5, so
+hard-mode runs climb the leaderboard faster.
+
 ### Saving
 
 The game saves to your browser's `localStorage` at these points:
@@ -163,6 +189,7 @@ js/terrain.js       painted terrain per theme, decorative props
 js/backdrops.js     animated parallax backdrops
 js/audio.js         WebAudio chiptune synth, music tracks, sound effects
 js/levels.js        level maps (ASCII), story, dialogue, riddles
+js/awards.js        achievements, reward skins, hard-mode settings
 js/world.js         physics, player, enemies, bosses
 js/game.js          game states, saving, input
 js/render.js        drawing: lighting, bloom, particles, HUD, menus

@@ -80,6 +80,7 @@ const OUTL = { navy: [13, 27, 94], dark: [16, 12, 26] };
   }
 
   // ============================================================ PICHONKUN
+  let HEAD = RAMPS.water;   // Pichonkun's head colour; swapped by setSkin()
   function pichon(o = {}) {
     const W = 50, H = 56, base = 53, cx = 24;
     const sq = o.sq || 0, bob = o.bob || 0, lean = o.lean || 0, tipLen = o.tip || 20.5;
@@ -102,7 +103,7 @@ const OUTL = { navy: [13, 27, 94], dark: [16, 12, 26] };
     // head: a round droplet with a small soft tip (smooth union), in squash space
     const hshape = (X, Y) => S.sunion(S.circle(X, Y, 0, 0, R), S.cone(X, Y, 0, -7.5, 7, lean, -tipLen, 1.1), 3.5);
     const hsdf = (x, y) => hshape((x - cx) / (sxs * WIDE), (y - hy) / sys) * Math.min(sxs, sys);
-    const head = part(W, H, hsdf, RAMPS.water, (x, y, d) => {
+    const head = part(W, H, hsdf, HEAD, (x, y, d) => {
       const X = (x - cx) / (sxs * WIDE), Y = (y - hy) / sys;
       // ---- face patch (lower right); features are stamped on afterwards
       const fd = S.ellipse(X, Y, 5.8, 4.8, 10.4, 8.4);
@@ -702,8 +703,20 @@ const OUTL = { navy: [13, 27, 94], dark: [16, 12, 26] };
     });
   }
 
+  // Repaint Pichonkun with another head colour (a reward skin). Painted once, then cached.
+  const SKIN_CACHE = {};
+  const HERO_KEYS = ['pichon_idle', 'pichon_blink', 'pichon_run', 'pichon_jump', 'pichon_fall', 'pichon_land', 'pichon_hurt', 'pichon_happy', 'pichon_shoot', 'pichon_white'];
+  window.setSkin = function setSkin(id, rampHex) {
+    if (!SKIN_CACHE[id]) {
+      HEAD = rampHex ? GFX.ramp(...rampHex) : RAMPS.water;
+      buildPichon();
+      SKIN_CACHE[id] = Object.fromEntries(HERO_KEYS.map(k => [k, SPR[k]]));
+      HEAD = RAMPS.water;
+    }
+    Object.assign(SPR, SKIN_CACHE[id]);
+  };
   window.buildSprites = function buildSprites() {
-    buildPichon();
+    window.setSkin('blue');
     SPR.pollen = [0, 1, 2, 3].map(f => pollen(f));
     SPR.virus = [0, 1, 2, 3].map(f => virus(f));
     SPR.bacteria = [0, 1, 2, 3].map(f => bacteria(f));

@@ -51,14 +51,25 @@ const SHOTS = {
     R.forEach((r, i) => { GAME.save.hi[i] = { score: 9400 - i * 730, rank: r, time: 90 }; GAME.save.cry[i] = [0, 1, 2].slice(0, C[i]); });
     GAME.state = 'levelselect'; GAME.lsSel = 3;
   },
-  'leaderboard': () => { GAME.save.name = 'PIC'; boardSubmit(GAME.save); GAME.openBoard(); T.step(30); },
+  'achievements': () => {
+    ['level1', 'crystal1', 'secret1', 'combo3', 'allDrops', 'noHit', 'quiz', 'rankS', 'hero'].forEach(id => { GAME.meta.ach[id] = 1; });
+    GAME.meta.finished = true; GAME.meta.cry = { 0: [0, 1, 2], 1: [0, 1, 2], 2: [0, 1, 2], 3: [0, 1] }; GAME.checkRewards(true);
+    GAME.state = 'awards'; GAME.boardT = 30;
+  },
+  'options-skins': () => { GAME.meta.skin = 'violet'; GAME.applySkin(); GAME.state = 'title'; GAME.sub = 'options'; GAME.menu = 3; T.step(30); },
+  'hard-mode': () => {
+    GAME.sub = null; GAME.meta.skin = 'mint'; GAME.applySkin(); GAME.save.hard = true;
+    T.play(2); T.bot(210, { god: true }); GAME.world.player.hp = 2; GAME.toasts = []; GAME.dialog = null; GAME.toast('ACHIEVEMENT!', 'CLEANING SPREE'); T.step(30); GAME.dialog = null;
+    GAME.keepToast = true;
+  },
+  'leaderboard': () => { GAME.save.hard = false; GAME.meta.skin = 'blue'; GAME.applySkin(); GAME.save.name = 'PIC'; boardSubmit(GAME.save); GAME.openBoard(); T.step(30); },
 };
 
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
   const { page, errors, close } = await openGame();
   for (const [name, fn] of Object.entries(SHOTS)) {
-    const data = await page.evaluate(`(${fn.toString()})(); GAME.saveFlash = 0; GAME.render(); GAME.canvas.toDataURL('image/png')`);
+    const data = await page.evaluate(`(${fn.toString()})(); GAME.saveFlash = 0; if (!GAME.keepToast) GAME.toasts = []; GAME.keepToast = false; GAME.render(); GAME.canvas.toDataURL('image/png')`);
     fs.writeFileSync(path.join(OUT, name + '.png'), Buffer.from(data.split(',')[1], 'base64'));
     console.log('wrote', name + '.png');
   }
