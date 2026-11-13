@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-11-13
+
+### Added
+
+- **Hearts have quarters.** Hits take different amounts depending on what hurt Pichonkun: a quarter
+  for pollen and dust, half for bacteria and spikes, three quarters for viruses and sludge, a whole
+  heart for bosses and pits. Hard mode adds a quarter to everything.
+- **Small heals**: a stomp or a high-combo kill, every 4 water drops, meeting a friend, and resting
+  at the active checkpoint each give a little back. Heart pickups and air crystals restore a whole heart.
+- The HUD hearts fill and empty in quarters.
+
+### Fixed
+
+- The title logo was blurry after the spacing fix in 1.5.1; its pixels are sharp again.
+
 ## [1.5.1] - 2026-11-13
 
 ### Changed
@@ -199,7 +214,8 @@ First public release. Play it at https://iiogurt.github.io/Pichonkun-platformer/
 - Tooling: ESLint, a level-data validator, a headless Chrome smoke test and a screenshot generator.
 - GitHub Actions for CI, GitHub Pages deployment and tagged releases.
 
-[Unreleased]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.5.1...HEAD
+[Unreleased]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.6.0...HEAD
+[1.6.0]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.5.1...v1.6.0
 [1.5.1]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.3.2...v1.4.0

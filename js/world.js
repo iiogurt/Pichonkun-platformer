@@ -47,7 +47,7 @@ class World {
     this.riddles = []; this.levers = []; this.leverSeq = [];
     this.dropsTotal = 0; this.drops = 0;
     this.crystalTotal = 0; this.secrets = []; this.secretOf = new Map();
-    this.combo = 0; this.comboT = 0; this.ghost = false;
+    this.combo = 0; this.comboT = 0; this.ghost = false; this.dropHeal = 0;
     this.hard = !!game.save.hard;
     this.boss = null; this.bossActive = false; this.bossDefeated = false;
     this.t = 0; this.shake = 0; this.hitstop = 0;
@@ -369,7 +369,7 @@ class World {
       b.vy += b.grav || 0;
       b.x += b.vx; b.y += b.vy; b.life--;
       if (b.life <= 0 || this.rectHitsSolid(b.x + 1, b.y + 1, b.w - 2, b.h - 2)) { b.dead = true; this.burst(b.x + 2, b.y + 2, b.col || '#888', 4); continue; }
-      if (overlap(b, p)) { b.dead = true; p.hurt(b.x < p.x ? 1 : -1); }
+      if (overlap(b, p)) { b.dead = true; p.hurt(b.x < p.x ? 1 : -1, HEALTH.bullet[b.spr] || 2); }
     }
     this.bullets = this.bullets.filter(b => !b.dead);
   }
@@ -388,6 +388,7 @@ class World {
             AUDIO.sfx('drop'); this.burst(o.x + 4, o.y + 4, '#5fd4ff', 6, 1.5);
             this.game.addScore(SCORE.drop);
             this.game.onDrop();
+            if (++this.dropHeal % HEALTH.heal.perDrops === 0) p.heal(1);
           }
           break;
         case 'crystal':
@@ -399,6 +400,7 @@ class World {
             this.float(o.x - 14, o.y - 8, `CRYSTAL! +${this.game.addScore(SCORE.crystal)}`, '#ffe060');
             this.game.onCrystal(this.idx, o.id);
             this.game.addAir(AIR.crystal);
+            p.heal(HEALTH.heal.crystal);
             this.game.saveGame('CRYSTAL FOUND');
           }
           break;
@@ -406,7 +408,7 @@ class World {
           if (overlap(p, o)) {
             o.dead = true; AUDIO.sfx('heart');
             if (p.hp >= p.maxHp) this.float(o.x - 4, o.y, `+${this.game.addScore(SCORE.spareHeart)}`, '#ffe060');
-            else { p.hp++; this.float(o.x, o.y, '+1', '#ff7a9a'); } this.burst(o.x + 4, o.y + 4, '#ff5a7a', 8);
+            else { p.heal(HEALTH.heal.heart); this.float(o.x, o.y, '+1', '#ff7a9a'); } this.burst(o.x + 4, o.y + 4, '#ff5a7a', 8);
           }
           break;
         case 'power':
@@ -426,10 +428,12 @@ class World {
             this.burst(o.x + 8, o.y, '#5fd4ff', 16, 2);
             this.game.saveGame('CHECKPOINT');
           }
+          // the active checkpoint is a fresh-air spot: resting there slowly mends Pichonkun
+          if (o.active && this.t % HEALTH.heal.checkpointFrames === 0 && overlap(p, { x: o.x - 8, y: o.y - 16, w: 32, h: 32 })) p.heal(1);
           break;
         case 'npc':
           if (!o.talked && Math.abs(p.x - o.x) < 40 && Math.abs(p.y - o.y) < 40) {
-            o.talked = true; this.game.say(o.lines);
+            o.talked = true; p.heal(HEALTH.heal.friend); this.game.say(o.lines);
           }
           break;
         case 'spring':
@@ -532,6 +536,8 @@ class World {
         this.game.onKill(this.combo);
         this.game.addAir(AIR.killBase + AIR.killPerCombo * mult);
         if (src && src.angel) this.game.angelXp(1);
+        // a clean kill gives a little health back: a stomp, or keeping a combo going
+        if (dir === 0) this.player.heal(HEALTH.heal.stomp); else if (mult >= HEALTH.heal.comboFrom) this.player.heal(HEALTH.heal.combo);
         run.bestCombo = Math.max(run.bestCombo, this.combo);
         this.float(e.x - 4, e.y - 4, mult > 1 ? `+${pts} X${mult}` : `+${pts}`, mult > 1 ? '#ffe060' : '#b5ecfc');
         if (mult > 1) AUDIO.sfx('combo');
@@ -663,7 +669,7 @@ class Player {
     this.world = world;
     this.x = x; this.y = y; this.w = 10; this.h = 18;
     this.vx = 0; this.vy = 0; this.face = 1;
-    this.maxHp = world.hard ? HARD.hearts : 3; this.hp = this.maxHp;
+    this.maxHp = (world.hard ? HARD.hearts : 3) * HEALTH.perHeart; this.hp = this.maxHp;   // counted in quarter hearts
     this.ground = false; this.coyote = 0; this.jumpBuf = 0; this.jumpHeld = false;
     this.usedDouble = false; this.canDouble = !!world.game.save.vapor || world.idx >= 3;
     this.inv = 0; this.shootCd = 0; this.anim = 0; this.landT = 0;
@@ -782,11 +788,9 @@ class Player {
     }
 
     // hazards
-    if (W.rectTouches(this.x, this.y, this.w, this.h, '^', 3) || W.rectTouches(this.x, this.y + 6, this.w, this.h - 6, '~', 2)) {
-      this.hazard();
-    } else if (this.y > W.ph + 24) {
-      this.hazard();
-    }
+    if (W.rectTouches(this.x, this.y, this.w, this.h, '^', 3)) this.hazard(HEALTH.spikes);
+    else if (W.rectTouches(this.x, this.y + 6, this.w, this.h - 6, '~', 2)) this.hazard(HEALTH.liquid);
+    else if (this.y > W.ph + 24) this.hazard(HEALTH.pit);
 
     // enemies
     for (const e of W.enemies) {
@@ -798,7 +802,7 @@ class Player {
         AUDIO.sfx('stomp');
         W.damageEnemy(e, 2, 0);
       } else {
-        this.hurt(e.x + e.w / 2 < this.x + this.w / 2 ? 1 : -1);
+        this.hurt(e.x + e.w / 2 < this.x + this.w / 2 ? 1 : -1, HEALTH.enemy[e.ch]);
       }
     }
     const b = W.boss;
@@ -806,13 +810,21 @@ class Player {
       const stomp = this.vy > 0.5 && this.y + this.h - this.vy <= b.y + 8;
       if (stomp && b.kind !== 'moldqueen') {
         this.vy = -6.5; this.usedDouble = false; AUDIO.sfx('stomp'); W.damageBoss(1);
-      } else this.hurt(b.x + b.w / 2 < this.x + this.w / 2 ? 1 : -1);
+      } else this.hurt(b.x + b.w / 2 < this.x + this.w / 2 ? 1 : -1, HEALTH.boss);
     }
     this.anim += Math.abs(this.vx) * 0.2;
   }
-  hurt(dir) {
+  // quarters of a heart; hard mode adds one to everything
+  cost(q) { return (q || 2) + (this.world.hard ? HEALTH.hardExtra : 0); }
+  heal(q) {
+    if (this.dead || this.hp >= this.maxHp) return false;
+    this.hp = Math.min(this.maxHp, this.hp + q); this.healT = 24;
+    for (let i = 0; i < 3 + q; i++) this.world.particles.push({ x: this.x + 5 + (Math.random() - 0.5) * 12, y: this.y + 6 + (Math.random() - 0.5) * 10, vx: 0, vy: -0.5, life: 22 + i * 3, max: 34, col: '#ff9ab0', size: 1, shape: 'star', add: true });
+    return true;
+  }
+  hurt(dir, q) {
     if (this.inv > 0 || this.dead) return;
-    this.hp--;
+    this.hp -= this.cost(q); this.hurtT = 30;
     this.world.game.stats.hits++; this.world.game.run.hits++;
     if (this.world.bossActive) this.world.game.run.bossHurt++;
     this.world.game.addAir(AIR.hurt);
@@ -823,10 +835,10 @@ class Player {
     this.world.burst(this.x + 5, this.y + 8, '#5fd4ff', 10);
     if (this.hp <= 0) this.die();
   }
-  hazard() {
+  hazard(q) {
     if (this.dead) return;
     if (this.inv <= 0) {
-      this.hp--; this.world.game.stats.hits++; this.world.game.run.hits++;
+      this.hp -= this.cost(q); this.hurtT = 30; this.world.game.stats.hits++; this.world.game.run.hits++;
       if (this.world.bossActive) this.world.game.run.bossHurt++;
       this.world.game.addAir(AIR.hurt);
       AUDIO.sfx('hurt');

@@ -258,7 +258,7 @@ test('hard mode: unlocked by finishing, 2 hearts, tougher enemies, score x1.5', 
   assert.ok(r.lockedGoesToStory && r.unlocked);
   assert.strictEqual(r.sub, 'mode');
   assert.ok(r.hard, 'save is not in hard mode');
-  assert.strictEqual(r.hp, 2);
+  assert.strictEqual(r.hp, 8, 'hard mode: 2 hearts of 4 quarters');
   assert.strictEqual(r.eHp, r.nHp + 1);
   assert.strictEqual(r.pts, 150);
   assert.ok(r.boss > r.nBoss);
@@ -363,33 +363,46 @@ test('backup: export and import round-trip, bad files rejected, New Game can be 
   assert.ok(r.items.every(i => i.length <= 19), 'a menu label is too long for the panel');
 });
 
-test('hearts: 3 is the limit, checkpoints do not heal, losing all shows GAME OVER', async page => {
+test('health: hearts have quarters, stronger enemies take more, small heals, then GAME OVER', async page => {
   const r = await page.evaluate(() => {
     localStorage.clear(); GAME.save = defaultSave(); GAME.meta = defaultMeta(); GAME.toasts = []; Input.down.clear(); GAME.dialog = null;
     T.play(0);
     let w = GAME.world, p = w.player;
-    w.enemies = [];
-    const max = p.maxHp;
-    p.inv = 0; p.hurt(1);
+    const foes = w.enemies.slice(); w.enemies = [];
+    const max = p.maxHp, lose = (fn) => { p.hp = max; p.inv = 0; fn(); return max - p.hp; };
+    const cost = { pollen: lose(() => p.hurt(1, HEALTH.enemy.p)), virus: lose(() => p.hurt(1, HEALTH.enemy.v)), boss: lose(() => p.hurt(1, HEALTH.boss)) };
+    // heals: stomp, 4 drops, resting at the active checkpoint, a heart, never above the maximum
+    p.hp = 4; p.inv = 0; p.vx = p.vy = 0;
+    w.damageEnemy(foes[0], 9, 0); const afterStomp = p.hp; T.step(6);   // let the hit-pause pass
+    const drops = w.objects.filter(o => o.type === 'drop').slice(0, 4);
+    const d0 = w.drops;
+    for (const d of drops) { p.x = d.x; p.y = d.y; p.vx = p.vy = 0; T.step(1); }
+    const afterDrops = p.hp, got = w.drops - d0;
     const cp = w.objects.find(o => o.type === 'checkpoint');
-    p.x = cp.x + 3; p.y = cp.y - 2; p.vx = p.vy = 0; T.step(5, () => { GAME.dialog = null; });
-    const afterCheckpoint = p.hp, saved = cp.active;
+    p.x = cp.x + 3; p.y = cp.y - 2; p.vx = p.vy = 0; T.step(100, () => { GAME.dialog = null; });
+    const afterRest = p.hp, saved = cp.active;
     const heart = w.objects.find(o => o.type === 'heart'); p.x = heart.x; p.y = heart.y; T.step(3);
     const afterHeart = p.hp;
-    p.x = heart.x; T.step(3); const capped = p.hp <= max;
-    for (let i = 0; i < 3; i++) { p.inv = 0; p.hurt(1); }
+    p.hp = max; const noOverheal = !p.heal(4) && p.hp === max;
+    GAME.render();
+    for (let i = 0; i < 3; i++) { p.inv = 0; p.hurt(1, HEALTH.boss); }
     const dead = p.dead;
     T.step(80, () => { GAME.dialog = null; });
     const state = GAME.state; GAME.render();
     T.step(45); Input.pressed.add('confirm'); T.step(1);
     w = GAME.world; p = w.player;
-    return { max, afterCheckpoint, saved, afterHeart, capped, dead, state, after: GAME.state, hp: p.hp, atCheckpoint: Math.abs(p.x - w.checkpoint.x) < 2 };
+    return { max, cost, afterStomp, afterDrops, got, afterRest, saved, afterHeart, noOverheal, dead, state, after: GAME.state, hp: p.hp, atCheckpoint: Math.abs(p.x - w.checkpoint.x) < 2 };
   });
-  assert.strictEqual(r.max, 3);
-  assert.ok(r.saved && r.afterCheckpoint === 2, 'a checkpoint must save but not heal');
-  assert.ok(r.afterHeart === 3 && r.capped, 'a heart heals one, never above 3');
+  assert.strictEqual(r.max, 12, '3 hearts of 4 quarters');
+  assert.deepStrictEqual(r.cost, { pollen: 1, virus: 3, boss: 4 });
+  assert.strictEqual(r.afterStomp, 5, 'a stomp should give a quarter back');
+  assert.strictEqual(r.got, 4, 'test should have collected 4 drops');
+  assert.strictEqual(r.afterDrops, 6, 'four drops should give a quarter back');
+  assert.ok(r.saved && r.afterRest >= 7 && r.afterRest <= 9, `resting at a checkpoint should mend slowly (${r.afterRest})`);
+  assert.strictEqual(r.afterHeart, r.afterRest + 4);
+  assert.ok(r.noOverheal, 'health went above the maximum');
   assert.ok(r.dead && r.state === 'gameover', `expected GAME OVER, got ${r.state}`);
-  assert.deepStrictEqual({ after: r.after, hp: r.hp, at: r.atCheckpoint }, { after: 'play', hp: 3, at: true });
+  assert.deepStrictEqual({ after: r.after, hp: r.hp, at: r.atCheckpoint }, { after: 'play', hp: 12, at: true });
 });
 
 test('audio engine runs every track and sound effect', async page => {

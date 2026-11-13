@@ -443,9 +443,18 @@
     const pw = 112 + (p.canDouble ? 14 : 0);
     this.pill(4, 4, pw, 15);
     ctx.fillStyle = 'rgba(95,212,255,0.5)'; ctx.fillRect(6, 4, pw - 4, 0.5);
-    for (let i = 0; i < p.maxHp; i++) {
-      const beat = (i < p.hp && p.hp === 1) ? 1 + Math.sin(this.t * 0.3) * 0.12 : 1;
-      drawSpr(ctx, i < p.hp ? SPR.heart : SPR.heartEmpty, 8 + i * 11 + 4.5 * (1 - beat), 7.5 + 4 * (1 - beat), false, beat);
+    // hearts fill in quarters; the last one beats when it is all that is left
+    const Q = HEALTH.perHeart, hearts = p.maxHp / Q, hp = Math.max(0, p.hp);
+    if (p.hurtT > 0) p.hurtT--;
+    if (p.healT > 0) p.healT--;
+    for (let i = 0; i < hearts; i++) {
+      const fill = Math.max(0, Math.min(1, (hp - i * Q) / Q)), last = hp <= Q && fill > 0;
+      const beat = last ? 1 + Math.sin(this.t * 0.3) * 0.12 : (p.healT > 16 && fill > 0 ? 1.15 : 1);
+      const hx = 8 + i * 11 + 4.5 * (1 - beat), hy = 7.5 + 4 * (1 - beat) + (p.hurtT > 22 ? Math.sin(this.t * 2 + i) : 0);
+      // the used-up part stays visible as a dim heart, so a partly filled heart reads as one
+      drawSpr(ctx, SPR.heartEmpty, hx, hy, false, beat);
+      ctx.globalAlpha = 0.3; drawSpr(ctx, SPR.heart, hx, hy, false, beat); ctx.globalAlpha = 1;
+      if (fill > 0) { const s = SPR.heart; ctx.drawImage(s.img, 0, 0, s.img.width * fill, s.img.height, hx, hy, s.w * fill * beat, s.h * beat); }
     }
     ctx.fillStyle = 'rgba(95,212,255,0.35)'; ctx.fillRect(43, 7, 0.5, 9);
     drawSpr(ctx, SPR.drop[(this.t >> 4) % 4], 47, 6);
@@ -682,7 +691,8 @@
     const drop = Math.round((1 - Math.min(1, T / 22)) * -40);
     FONT.draw(ctx, 'GAME OVER', VIEW_W / 2, 38 + drop, '#ff7a6a', { align: 'center', scale: 4, shadow: '#3a0606' });
     ctx.globalAlpha = 0.45 * a;
-    for (let i = 0; i < this.world.player.maxHp; i++) drawSpr(ctx, SPR.heart, VIEW_W / 2 - this.world.player.maxHp * 7 + i * 14, 84, false, 1.2);
+    const nh = this.world.player.maxHp / HEALTH.perHeart;
+    for (let i = 0; i < nh; i++) drawSpr(ctx, SPR.heart, VIEW_W / 2 - nh * 7 + i * 14, 84, false, 1.2);
     ctx.globalAlpha = a;
     FONT.draw(ctx, 'ALL HEARTS LOST!', VIEW_W / 2, 104, '#ffffff', { align: 'center', shadow: '#000' });
     if (T >= 40) {
@@ -770,6 +780,7 @@
     // Trim every letter to its inked width and set them with one even gap instead.
     const cell = 7 * sc, glyphs = [...text].map(ch => {
       const c = GFX.canvas(cell, 9 * sc), g = c.getContext('2d');
+      g.imageSmoothingEnabled = false;      // keep the enlarged pixels sharp
       FONT.draw(g, ch, 0, 0, '#ffffff', { scale: sc });
       const d = g.getImageData(0, 0, c.width, c.height).data;
       let x0 = c.width, x1 = -1;

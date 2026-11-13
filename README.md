@@ -120,10 +120,28 @@ On phones and tablets, on-screen buttons appear automatically.
 
 ### Hearts
 
-Pichonkun has **3 hearts** (2 in hard mode), and that is the maximum. An enemy, a spike or a fall costs
-one. Only ❤ heart pickups give one back: checkpoints save your place but do not heal. When all hearts are
-gone it is **GAME OVER**, and you can try again from the last checkpoint with full hearts. Your score,
-drops and crystals are kept.
+Pichonkun has **3 hearts** (2 in hard mode), and that is the maximum. Every heart has **four quarters**,
+and what hurts him takes a different share:
+
+| What | Costs |
+| --- | --- |
+| Pollen, germ flies, dust bunnies, a flower's pollen ball | ¼ heart |
+| Bacteria, flowers, smog clouds, mold, spores, soot, spikes | ½ heart |
+| Viruses, toxic sludge | ¾ heart |
+| Bosses, falling into a pit | 1 heart |
+
+In hard mode everything costs one quarter more.
+
+Health comes back in small steps:
+
+- a **stomp**, or a kill at combo ×3 or higher: ¼ heart
+- every **4 water drops**: ¼ heart
+- meeting a **friend** (Leafa, Prof. Mesh and the others): ½ heart
+- **resting at the active checkpoint**: ¼ heart every 0.75 seconds
+- a ❤ **heart pickup** or an **air crystal**: a whole heart
+
+When all hearts are gone it is **GAME OVER**, and you can try again from the last checkpoint with full
+hearts. Your score, drops and crystals are kept.
 
 ### Scoring
 

@@ -3,7 +3,7 @@
 Ideas and plans for future versions. Nothing here is a promise, and priorities can change.
 Suggestions are welcome: open an [issue](https://github.com/iiogurt/Pichonkun-platformer/issues/new/choose).
 
-## v1.6: Polish and feel
+## v1.7: Polish and feel
 - [ ] Gamepad support (Gamepad API)
 - [ ] Let a second player control the wingman
 - [ ] Separate volume sliders for music and sound effects
@@ -12,12 +12,12 @@ Suggestions are welcome: open an [issue](https://github.com/iiogurt/Pichonkun-pl
 - [ ] Balance pass based on player feedback (boss health, ice friction, enemy density)
 - [ ] Hold the first frames of the intro card so it can't be skipped by accident
 
-## v1.7: More to discover
+## v1.8: More to discover
 - [ ] Collectible "eco cards" with facts about clean air, the water cycle and energy saving
 - [ ] Rotating pool of riddles, so replays get different questions
 - [ ] A new power-up: **Ice Shot** that freezes enemies into temporary platforms
 
-## v1.8: Accessibility and reach
+## v1.9: Accessibility and reach
 - [ ] Assist mode (more hearts, slower game speed, skip a riddle)
 - [ ] Colour-blind friendly palette option and a high-contrast HUD
 - [ ] Translations (the font and dialogue system need lowercase and accented letters first)
@@ -30,6 +30,7 @@ Suggestions are welcome: open an [issue](https://github.com/iiogurt/Pichonkun-pl
 - [ ] Level editor using the existing ASCII map format
 
 ## Done
+- [x] v1.6.0: quarter hearts, damage by enemy strength, small heals
 - [x] v1.5.0: splash power, the Pure Air meter, Angel as an earned perk that levels up, backup and restore
 - [x] v1.4.0: Angel, the guardian wingman
 - [x] v1.3.0: 18 achievements, reward skins and hard mode
