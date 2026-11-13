@@ -4,7 +4,7 @@ const VIEW_W = 384, VIEW_H = 216, RES = 2;
 const SAVE_KEY = 'pichonkun_save_v1';
 const BOARD_KEY = 'pichonkun_scores_v1';
 const PREV_KEY = 'pichonkun_save_prev';   // the adventure replaced by the last New Game
-const GAME_VERSION = '1.5.0';
+const GAME_VERSION = '1.5.1';
 
 // ================================================================== INPUT
 const Input = (() => {
@@ -343,6 +343,23 @@ class Game {
     const total = lines.reduce((n, l) => n + l[1], 0);
     return { lines, total, rank: rankFor(total / m, w.parScore), crystals: r.crystals.length, crystalTotal: w.crystalTotal, combo: r.bestCombo };
   }
+  // All hearts lost: say so clearly, then offer another try from the last checkpoint.
+  gameOver() {
+    if (this.state !== 'play') return;
+    this.state = 'gameover'; this.overT = 0; this.overSel = 0;
+    Input.down.clear();
+    AUDIO.playMusic('gameover');
+  }
+  updateGameOver() {
+    this.overT++;
+    if (this.overT < 40) return;
+    if (Input.hit('up') || Input.hit('down')) { this.overSel = 1 - this.overSel; AUDIO.sfx('select'); }
+    if (Input.any('confirm', 'jump', 'interact')) {
+      AUDIO.sfx('confirm');
+      if (this.overSel === 0) { this.respawn(); this.state = 'play'; }
+      else { this.state = 'title'; this.menu = 0; this.world = null; AUDIO.playMusic('title'); }
+    }
+  }
   levelComplete() {
     if (this.state !== 'play') return;
     const w = this.world;
@@ -407,6 +424,7 @@ class Game {
         break;
       case 'play': this.updatePlay(); break;
       case 'pause': this.updatePause(); break;
+      case 'gameover': this.updateGameOver(); break;
       case 'clear':
         this.clearT++;
         if (this.clearT > 90 && Input.any(...CONFIRM)) {
@@ -504,7 +522,7 @@ class Game {
     }
     if (this.sub === 'backup') {
       const items = ['SAVE BACKUP FILE', 'LOAD BACKUP FILE'];
-      if (localStorage.getItem(PREV_KEY)) items.push('RESTORE LAST ADVENTURE');
+      if (localStorage.getItem(PREV_KEY)) items.push('UNDO NEW GAME');
       return items.concat('BACK');
     }
     if (this.sub === 'mode') return ['NORMAL', 'HARD', 'BACK'];
@@ -560,7 +578,7 @@ class Game {
       else if (it === 'BACKUP') { this.sub = 'backup'; this.menu = 0; this.backupMsg = ''; if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); }
       else if (it === 'SAVE BACKUP FILE') this.downloadBackup();
       else if (it === 'LOAD BACKUP FILE') this.pickBackupFile();
-      else if (it === 'RESTORE LAST ADVENTURE') this.restorePrevious();
+      else if (it === 'UNDO NEW GAME') this.restorePrevious();
       else if (it.startsWith('NAME')) { this.tally = null; this.askName(() => { boardSubmit(this.save); this.state = 'title'; }); }
       else if (it.startsWith('SKIN')) {
         const have = SKINS.filter(x => this.meta.skins.includes(x[0]));

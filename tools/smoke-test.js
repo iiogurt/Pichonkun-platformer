@@ -359,7 +359,37 @@ test('backup: export and import round-trip, bad files rejected, New Game can be 
   assert.strictEqual(r.err, '');
   assert.deepStrictEqual(r.back, { unlocked: 6, name: 'ZORA', xp: 7, ach: true, row: true, stored: 6 });
   assert.strictEqual(r.fresh, 1); assert.strictEqual(r.undone, 6);
-  assert.ok(r.items.includes('RESTORE LAST ADVENTURE'));
+  assert.ok(r.items.includes('UNDO NEW GAME'));
+  assert.ok(r.items.every(i => i.length <= 19), 'a menu label is too long for the panel');
+});
+
+test('hearts: 3 is the limit, checkpoints do not heal, losing all shows GAME OVER', async page => {
+  const r = await page.evaluate(() => {
+    localStorage.clear(); GAME.save = defaultSave(); GAME.meta = defaultMeta(); GAME.toasts = []; Input.down.clear(); GAME.dialog = null;
+    T.play(0);
+    let w = GAME.world, p = w.player;
+    w.enemies = [];
+    const max = p.maxHp;
+    p.inv = 0; p.hurt(1);
+    const cp = w.objects.find(o => o.type === 'checkpoint');
+    p.x = cp.x + 3; p.y = cp.y - 2; p.vx = p.vy = 0; T.step(5, () => { GAME.dialog = null; });
+    const afterCheckpoint = p.hp, saved = cp.active;
+    const heart = w.objects.find(o => o.type === 'heart'); p.x = heart.x; p.y = heart.y; T.step(3);
+    const afterHeart = p.hp;
+    p.x = heart.x; T.step(3); const capped = p.hp <= max;
+    for (let i = 0; i < 3; i++) { p.inv = 0; p.hurt(1); }
+    const dead = p.dead;
+    T.step(80, () => { GAME.dialog = null; });
+    const state = GAME.state; GAME.render();
+    T.step(45); Input.pressed.add('confirm'); T.step(1);
+    w = GAME.world; p = w.player;
+    return { max, afterCheckpoint, saved, afterHeart, capped, dead, state, after: GAME.state, hp: p.hp, atCheckpoint: Math.abs(p.x - w.checkpoint.x) < 2 };
+  });
+  assert.strictEqual(r.max, 3);
+  assert.ok(r.saved && r.afterCheckpoint === 2, 'a checkpoint must save but not heal');
+  assert.ok(r.afterHeart === 3 && r.capped, 'a heart heals one, never above 3');
+  assert.ok(r.dead && r.state === 'gameover', `expected GAME OVER, got ${r.state}`);
+  assert.deepStrictEqual({ after: r.after, hp: r.hp, at: r.atCheckpoint }, { after: 'play', hp: 3, at: true });
 });
 
 test('audio engine runs every track and sound effect', async page => {

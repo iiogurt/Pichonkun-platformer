@@ -422,8 +422,7 @@ class World {
             for (const c of this.objects) if (c.type === 'checkpoint') c.active = false;
             o.active = true;
             this.checkpoint = { x: o.x + 3, y: o.y + TILE - 18 };
-            p.hp = p.maxHp;
-            AUDIO.sfx('checkpoint');
+            AUDIO.sfx('checkpoint');     // checkpoints save, they do not heal: only heart pickups do
             this.burst(o.x + 8, o.y, '#5fd4ff', 16, 2);
             this.game.saveGame('CHECKPOINT');
           }
@@ -675,7 +674,7 @@ class Player {
     const W = this.world;
     if (this.dead) {
       this.deadT++;
-      if (this.deadT > 70) this.world.game.respawn();
+      if (this.deadT > 70) this.world.game.gameOver();
       return;
     }
     if (this.inv > 0) this.inv--;

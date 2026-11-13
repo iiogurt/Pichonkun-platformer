@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-11-13
+
+### Changed
+
+- **Hearts are a clear limit.** Three hearts is the maximum, and checkpoints no longer refill them;
+  only heart pickups do. Losing all hearts now shows a **GAME OVER** screen with a choice to try
+  again from the last checkpoint or quit to the title.
+
+### Fixed
+
+- The title logo had uneven gaps around narrow letters. Letters are now spaced by their real width.
+- The backup menu's longest entry did not fit its panel; it is now called "Undo New Game".
+
 ## [1.5.0] - 2026-11-13
 
 ### Added
@@ -186,7 +199,8 @@ First public release. Play it at https://iiogurt.github.io/Pichonkun-platformer/
 - Tooling: ESLint, a level-data validator, a headless Chrome smoke test and a screenshot generator.
 - GitHub Actions for CI, GitHub Pages deployment and tagged releases.
 
-[Unreleased]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.5.0...HEAD
+[Unreleased]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.5.1...HEAD
+[1.5.1]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.3.2...v1.4.0
 [1.3.2]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.3.1...v1.3.2

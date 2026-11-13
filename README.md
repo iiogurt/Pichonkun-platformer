@@ -118,6 +118,13 @@ On phones and tablets, on-screen buttons appear automatically.
 | 9 | Smokestack Factory | Everything at once, the 3 R's puzzle |
 | 10 | Smogmaw's Sky | Cloud platforms · 👑 **Smogmaw** |
 
+### Hearts
+
+Pichonkun has **3 hearts** (2 in hard mode), and that is the maximum. An enemy, a spike or a fall costs
+one. Only ❤ heart pickups give one back: checkpoints save your place but do not heal. When all hearts are
+gone it is **GAME OVER**, and you can try again from the last checkpoint with full hearts. Your score,
+drops and crystals are kept.
+
 ### Scoring
 
 | What | Points |
@@ -211,7 +218,7 @@ lose it. To keep it safe, open **Options → Backup** on the title screen:
 
 - **Save backup file** downloads one small file with your adventure, leaderboard, achievements and skins.
 - **Load backup file** restores everything from such a file, in any browser and on any device.
-- **Restore last adventure** brings back the adventure that a New Game (or a loaded backup) replaced.
+- **Undo New Game** brings back the adventure that a New Game (or a loaded backup) replaced.
 
 Opening the Backup menu also asks the browser to keep the game's data permanently.
 
