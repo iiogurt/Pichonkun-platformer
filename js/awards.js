@@ -68,3 +68,15 @@ const ANGEL = {
   speed: 4.6,
 };
 const levelFor = (need, v) => { let l = 1; for (let i = 1; i < need.length; i++) if (v >= need[i]) l = i + 1; return l; };
+
+// Health: every heart has 4 quarters. What hurts takes a different share, so a pollen puff is
+// a nuisance and a virus or a boss is a real threat. A heart is gone once its quarters are used up.
+// Small things give quarters back; only a heart pickup or a crystal restores a whole heart.
+const HEALTH = {
+  perHeart: 4,
+  enemy: { p: 1, g: 1, d: 1, b: 2, f: 2, s: 2, m: 2, v: 3 },   // touching an enemy
+  bullet: { pollenBall: 1, spore: 2, soot: 2 },               // being hit by what they throw
+  boss: 4, spikes: 2, liquid: 3, pit: 4,
+  hardExtra: 1,                                               // hard mode: everything hurts one quarter more
+  heal: { heart: 4, crystal: 4, stomp: 1, combo: 1, comboFrom: 3, perDrops: 4, friend: 2, checkpointFrames: 45 },
+};

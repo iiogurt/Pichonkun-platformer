@@ -10,7 +10,7 @@ const gameGlobals = Object.fromEntries([
   'GRAV', 'MAX_FALL', 'RUN_SPEED', 'JUMP_V', 'DJUMP_V', 'SPRING_V',
   'VIEW_W', 'VIEW_H', 'RES', 'SAVE_KEY', 'GAME_VERSION', 'CONFIRM', 'Input', 'Game', 'whiteOf', 'defaultSave', 'loadSave', 'writeSave',
   'META_KEY', 'defaultMeta', 'loadMeta', 'writeMeta', 'crystalsEver', 'achCount', 'ACHIEVEMENTS', 'SKINS', 'HARD', 'setSkin',
-  'SCORE', 'rankFor', 'SPLASH', 'AIR', 'ANGEL', 'levelFor', 'PREV_KEY', 'BOARD_KEY', 'BOARD_SIZE', 'BOARD_SEED', 'NAME_CHARS', 'NAME_MAX', 'loadBoard', 'writeBoard', 'boardSubmit', 'totalScore', 'newRun', 'newRunId',
+  'SCORE', 'rankFor', 'SPLASH', 'AIR', 'ANGEL', 'HEALTH', 'levelFor', 'PREV_KEY', 'BOARD_KEY', 'BOARD_SIZE', 'BOARD_SEED', 'NAME_CHARS', 'NAME_MAX', 'loadBoard', 'writeBoard', 'boardSubmit', 'totalScore', 'newRun', 'newRunId',
 ].map(n => [n, 'writable']));
 
 module.exports = [
