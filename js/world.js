@@ -32,9 +32,6 @@ const SCORE = {
 };
 const rankFor = (score, par) => SCORE.ranks.find(r => score >= par * r[1])[0];
 
-// The guardian angel shoots slower than Pichonkun: a helper, not a replacement.
-const WINGMAN = { range: 112, cooldown: 55, speed: 4.6 };
-
 class World {
   constructor(game, levelIdx, checkpoint) {
     this.game = game;
@@ -86,7 +83,7 @@ class World {
     }
     this.parScore = this.calcParScore();
     this.player.lastSafe = { x: this.player.x, y: this.player.y };
-    this.setWingman(game.save.wing !== false);
+    this.wing = null;
     this.cam = { x: 0, y: 0 };
     this.snapCamera();
   }
@@ -178,37 +175,49 @@ class World {
   }
   parTime() { return this.W + (this.boss ? 60 : 0); }
 
-  // ------------------------------------------------------------- wingman
-  // The guardian angel: flies beside Pichonkun (through walls, so it never gets stuck)
-  // and splashes nearby enemies on its own.
-  setWingman(on) {
-    const p = this.player;
-    this.wing = on ? { x: p.x - 14, y: p.y - 14, face: 1, t: 0, cool: 40, shootT: 0 } : null;
+  // --------------------------------------------------------------- angel
+  // The guardian angel is called with a full PURE AIR meter and stays for a limited time.
+  // It flies beside Pichonkun (through walls, so it never gets stuck) and splashes enemies itself.
+  callAngel(level) {
+    const p = this.player, i = level - 1;
+    this.wing = { x: p.x - p.face * 30, y: p.y - 70, face: p.face, t: 0, cool: 20, shootT: 0, level, life: ANGEL.seconds[i] * 60, max: ANGEL.seconds[i] * 60 };
+    this.burst(p.x + 5, p.y - 10, '#ffe894', 26, 2.6); this.ring(p.x + 5, p.y + 6, '#ffe894', 40);
+    this.float(p.x - 26, p.y - 24, `ANGEL LV ${level}!`, '#ffe060');
+    AUDIO.sfx('powerup');
   }
   updateWingman() {
     const a = this.wing, p = this.player;
     if (!a) return;
     a.t++;
+    if (--a.life <= 0) {
+      this.burst(a.x + 5, a.y + 6, '#ffe894', 18, 2); this.ring(a.x + 5, a.y + 6, '#ffffff', 22);
+      this.float(a.x - 20, a.y - 10, 'BYE FOR NOW!', '#ffe894');
+      this.wing = null; return;
+    }
     const tx = p.x + p.w / 2 - p.face * 18 - 5, ty = p.y - 15 + Math.sin(a.t * 0.07) * 3;
     a.x += (tx - a.x) * 0.07; a.y += (ty - a.y) * 0.07;
     if (a.shootT > 0) a.shootT--;
     if (a.cool > 0) a.cool--;
     if (p.dead) return;
+    const i = a.level - 1, range = ANGEL.range[i];
     // nearest enemy (or the boss) in range
     const cx = a.x + 5, cy = a.y + 6;
-    let best = null, bd = WINGMAN.range;
+    let best = null, bd = range;
     for (const e of this.enemies) {
       if (e.dead) continue;
       const d = Math.hypot(e.x + e.w / 2 - cx, e.y + e.h / 2 - cy);
       if (d < bd) { bd = d; best = e; }
     }
     const b = this.boss;
-    if (!best && b && this.bossActive && !b.dead && Math.hypot(b.x + b.w / 2 - cx, b.y + b.h / 2 - cy) < WINGMAN.range * 1.3) best = b;
+    if (!best && b && this.bossActive && !b.dead && Math.hypot(b.x + b.w / 2 - cx, b.y + b.h / 2 - cy) < range * 1.3) best = b;
     a.face = best ? (best.x + best.w / 2 >= cx ? 1 : -1) : (Math.abs(tx - a.x) > 6 ? Math.sign(tx - a.x) : p.face);
-    if (!best || a.cool > 0 || this.shots.length >= 6) return;
-    const dx = best.x + best.w / 2 - cx, dy = best.y + best.h / 2 - cy, d = Math.hypot(dx, dy) || 1;
-    this.shots.push({ x: cx - 3, y: cy - 3, w: 6, h: 6, vx: dx / d * WINGMAN.speed, vy: dy / d * WINGMAN.speed, life: Math.ceil(WINGMAN.range * 1.4 / WINGMAN.speed) });
-    a.cool = WINGMAN.cooldown; a.shootT = 12;
+    if (!best || a.cool > 0) return;
+    const ang = Math.atan2(best.y + best.h / 2 - cy, best.x + best.w / 2 - cx), n = ANGEL.shots[i];
+    for (let k = 0; k < n; k++) {
+      const an = ang + (k - (n - 1) / 2) * 0.2;
+      this.shots.push({ x: cx - 3, y: cy - 3, w: 6, h: 6, vx: Math.cos(an) * ANGEL.speed, vy: Math.sin(an) * ANGEL.speed, life: Math.ceil(range * 1.4 / ANGEL.speed), angel: true });
+    }
+    a.cool = ANGEL.cooldown[i]; a.shootT = 12;
     AUDIO.sfx('shoot');
   }
 
@@ -344,10 +353,10 @@ class World {
       if (s.life <= 0 || this.rectHitsSolid(s.x + 1, s.y + 1, s.w - 2, s.h - 2)) { s.dead = true; this.splash(s.x + 3, s.y + 3); continue; }
       for (const e of this.enemies) {
         if (e.dead || !overlap(s, e)) continue;
-        s.dead = true; this.damageEnemy(e, 1, s.vx > 0 ? 1 : -1); this.splash(s.x + 3, s.y + 3); break;
+        s.dead = true; this.damageEnemy(e, s.dmg || 1, s.vx > 0 ? 1 : -1, s); this.splash(s.x + 3, s.y + 3); break;
       }
       if (!s.dead && this.boss && this.bossActive && !this.boss.dead && overlap(s, this.boss)) {
-        s.dead = true; this.damageBoss(1); this.splash(s.x + 3, s.y + 3);
+        s.dead = true; this.damageBoss(s.dmg || 1, s); this.splash(s.x + 3, s.y + 3);
       }
       if (!s.dead) for (const b of this.bullets) if (!b.dead && overlap(s, b)) { b.dead = true; s.dead = true; this.splash(s.x + 3, s.y + 3); break; }
     }
@@ -378,6 +387,7 @@ class World {
             o.dead = true; this.drops++; this.game.collected.push(o.id);
             AUDIO.sfx('drop'); this.burst(o.x + 4, o.y + 4, '#5fd4ff', 6, 1.5);
             this.game.addScore(SCORE.drop);
+            this.game.onDrop();
           }
           break;
         case 'crystal':
@@ -388,6 +398,7 @@ class World {
             this.ring(o.x + 5, o.y + 6, '#ffe060', 26);
             this.float(o.x - 14, o.y - 8, `CRYSTAL! +${this.game.addScore(SCORE.crystal)}`, '#ffe060');
             this.game.onCrystal(this.idx, o.id);
+            this.game.addAir(AIR.crystal);
             this.game.saveGame('CRYSTAL FOUND');
           }
           break;
@@ -502,7 +513,7 @@ class World {
     if (!silent) { AUDIO.sfx('gate'); this.shake = 12; }
   }
 
-  damageEnemy(e, dmg, dir) {
+  damageEnemy(e, dmg, dir, src) {
     e.hp -= dmg; e.flash = 6;
     if (e.hp <= 0) {
       e.dead = true; AUDIO.sfx('kill');
@@ -520,6 +531,8 @@ class World {
         const mult = Math.min(SCORE.comboMax, this.combo);
         const pts = this.game.addScore(ENEMY_DEFS[e.ch].hp * SCORE.killPerHp * mult + (dir === 0 ? SCORE.stomp : 0));
         this.game.onKill(this.combo);
+        this.game.addAir(AIR.killBase + AIR.killPerCombo * mult);
+        if (src && src.angel) this.game.angelXp(1);
         run.bestCombo = Math.max(run.bestCombo, this.combo);
         this.float(e.x - 4, e.y - 4, mult > 1 ? `+${pts} X${mult}` : `+${pts}`, mult > 1 ? '#ffe060' : '#b5ecfc');
         if (mult > 1) AUDIO.sfx('combo');
@@ -529,9 +542,11 @@ class World {
       if (e.ground !== undefined && !ENEMY_DEFS[e.ch].fixed) e.vx += dir * 1.5;
     }
   }
-  damageBoss(dmg) {
+  damageBoss(dmg, src) {
     const b = this.boss;
     if (b.inv > 0) return;
+    this.game.addAir(AIR.bossHit);
+    if (src && src.angel) this.game.angelXp(0.5);
     b.hp -= dmg; b.flash = 8; b.inv = 10;
     this.hitstop = 2;
     this.ring(b.x + b.w / 2, b.y + b.h / 2, '#ffffff', 26);
@@ -586,6 +601,7 @@ class World {
         AUDIO.sfx('secret');
         this.float(p.x - 22, p.y - 14, `SECRET! +${this.game.addScore(SCORE.secret)}`, '#ffe060');
         this.game.award('secret1');
+        this.game.addAir(AIR.secret);
         for (const [sx, sy] of sc.tiles) this.burst(sx * TILE + 8, sy * TILE + 8, '#ffe060', 3, 1.2);
       }
     }
@@ -717,11 +733,18 @@ class Player {
     if (this.platform) { this.x += this.platform.dx; this.y += this.platform.dy; }
 
     // shoot
-    if (input.shootPressed && this.shootCd === 0 && W.shots.length < 4) {
-      const up = input.up;
-      const s = { x: this.x + (this.face > 0 ? 8 : -4), y: this.y + 5, w: 6, h: 6, vx: this.face * (up ? 3.4 : 5), vy: up ? -3.6 : 0, life: up ? 34 : 40 };
-      W.shots.push(s);
-      this.shootCd = 13; this.shootT = 10;
+    const lv = W.game.splashLevel(), li = lv - 1;
+    if (input.shootPressed && this.shootCd === 0 && W.shots.filter(s => !s.angel).length < SPLASH.maxShots[li]) {
+      const up = input.up, life = SPLASH.life[li] - (up ? 6 : 0);
+      const base = up ? -0.81 : 0;                 // aim: straight ahead, or diagonally up
+      // power 1-2: one splash. 3: twin. 4: triple spread. 5: triple with a big middle splash.
+      const fan = lv >= 4 ? [-0.2, 0, 0.2] : [0];
+      const twin = lv === 3 ? [-3.5, 3.5] : [0];
+      for (const off of fan) for (const dy of twin) {
+        const an = base + off, big = lv === 5 && off === 0;
+        W.shots.push({ x: this.x + (this.face > 0 ? 8 : -4), y: this.y + 5 + dy, w: 6, h: 6, vx: this.face * Math.cos(an) * 5, vy: Math.sin(an) * 5, life, dmg: big ? 2 : 1, big });
+      }
+      this.shootCd = SPLASH.cooldown[li]; this.shootT = 10;
       AUDIO.sfx('shoot');
     }
 
@@ -793,6 +816,7 @@ class Player {
     this.hp--;
     this.world.game.stats.hits++; this.world.game.run.hits++;
     if (this.world.bossActive) this.world.game.run.bossHurt++;
+    this.world.game.addAir(AIR.hurt);
     this.inv = 80;
     this.vx = dir * 2.5; this.vy = -4;
     this.world.shake = 8;
@@ -805,6 +829,7 @@ class Player {
     if (this.inv <= 0) {
       this.hp--; this.world.game.stats.hits++; this.world.game.run.hits++;
       if (this.world.bossActive) this.world.game.run.bossHurt++;
+      this.world.game.addAir(AIR.hurt);
       AUDIO.sfx('hurt');
     }
     this.world.burst(this.x + 5, this.y + 8, '#5fd4ff', 14, 2);

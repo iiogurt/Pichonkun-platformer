@@ -202,10 +202,13 @@
     // guardian angel
     if (w.wing) {
       const a = w.wing, spr = a.shootT > 0 ? SPR.angel_shoot : SPR.angel[(a.t >> 3) % 4];
+      // flickers during its last two seconds
+      if (a.life < 120 && Math.floor(a.life / 5) % 2) ctx.globalAlpha = 0.35;
       L(a.x + 5, a.y + 6, 46, '#fff0b8', 0.8, 0);
       if (hi) { ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.4; ctx.drawImage(glow('#fff0b8', 20, 0.5), a.x + 5 - 20, a.y + 2 - 20); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; }
-      const s = 0.8;
+      const s = 0.9;
       ctx.drawImage(a.face < 0 ? spr.flip : spr.img, Math.round((a.x + 5 - spr.w * s / 2) * 2) / 2, Math.round((a.y + 14 - (spr.h - spr.oy) * s) * 2) / 2, spr.w * s, spr.h * s);
+      ctx.globalAlpha = 1;
     }
 
     // player
@@ -228,9 +231,10 @@
       const spr = SPR.shot[(t >> 2) % 2];
       ctx.save(); ctx.translate(s.x + 3, s.y + 3);
       if (s.vy) ctx.rotate(Math.atan2(s.vy, Math.abs(s.vx)) * (s.vx < 0 ? -1 : 1));
+      if (s.big) ctx.scale(1.6, 1.6);
       ctx.drawImage(s.vx < 0 ? spr.flip : spr.img, -spr.w / 2, -spr.h / 2, spr.w, spr.h);
       ctx.restore();
-      L(s.x + 3, s.y + 3, 34, '#8fdcff', 0.8, 11);
+      L(s.x + 3, s.y + 3, s.big ? 48 : 34, s.angel ? '#ffe894' : '#8fdcff', 0.8, s.big ? 16 : 11);
     }
     for (const b of w.bullets) {
       const spr = SPR[b.spr], sc = Math.max(1, b.w / 4);
@@ -448,7 +452,23 @@
     for (let i = 0; i < w.crystalTotal; i++) drawSpr(ctx, i < this.run.crystals.length ? SPR.crystalIcon : SPR.crystalEmpty, 88 + i * 8, 7.5);
     if (p.canDouble) drawSpr(ctx, SPR.power[0], 116, 8.5, false, 0.5);
 
-    if (w.hard) { this.pill(4, 21, 30, 12); FONT.draw(ctx, 'HARD', 8, 23, '#ff7a6a', { shadow: '#3a0606' }); }
+    // second row: [HARD] splash power pips | PURE AIR meter (or Angel's remaining time)
+    {
+      const hx = w.hard ? 30 : 0, lv = this.splashLevel(), rw = hx + 122, air = (this.save.air || 0) / AIR.full, a = w.wing;
+      this.pill(4, 21, rw, 12);
+      if (w.hard) FONT.draw(ctx, 'HARD', 8, 23, '#ff7a6a', { shadow: '#3a0606' });
+      let x = 8 + hx;
+      FONT.draw(ctx, 'PWR', x, 23, '#b5ecfc', { shadow: '#061040' }); x += 21;
+      for (let i = 0; i < SPLASH.need.length; i++) { ctx.fillStyle = i < lv ? '#5fd4ff' : '#22306a'; ctx.fillRect(x + i * 5, 23.5, 4, 6); }
+      x += 30;
+      ctx.fillStyle = 'rgba(95,212,255,0.35)'; ctx.fillRect(x - 3, 23, 0.5, 8);
+      const full = !a && air >= 1, blink = Math.floor(this.t / 12) % 2;
+      FONT.draw(ctx, a ? `LV${a.level}` : full && blink ? 'C KEY' : 'ANGEL', x, 23, a || full ? '#ffe680' : '#b5ecfc', { shadow: '#061040' });
+      x += 33;
+      ctx.fillStyle = '#22306a'; ctx.fillRect(x, 24.5, 30, 5);
+      ctx.fillStyle = a ? '#ffe060' : full ? (blink ? '#ffffff' : '#ffe060') : '#7cd0a0';
+      ctx.fillRect(x, 24.5, Math.round(30 * (a ? a.life / a.max : air)), 5);
+    }
 
     // score + combo meter
     const sc = String(this.run.score).padStart(6, '0'), sw = FONT.measure(sc) + 12, sx = Math.round(VIEW_W / 2 - sw / 2) + 14;
@@ -678,7 +698,7 @@
   G.drawToast = function () {
     const ctx = this.ctx, o = this.toasts[0];
     const k = Math.min(1, o.t / 12, (210 - o.t) / 12), bw = Math.max(FONT.measure(o.text), FONT.measure(o.title)) + 34;
-    const x = Math.round(VIEW_W / 2 - bw / 2), y = Math.round(-30 + k * 54);
+    const x = Math.round(VIEW_W / 2 - bw / 2), y = Math.round(-30 + k * 68);
     this.panel(x, y, bw, 26);
     drawSpr(ctx, SPR.crystalIcon, x + 7, y + 9 + Math.sin(this.t * 0.2));
     FONT.draw(ctx, o.title, x + 22, y + 5, '#ffe680', { shadow: '#061040' });
@@ -826,16 +846,23 @@
       const sk = SKINS.find(s => !this.meta.skins.includes(s[0]));
       // hint for the selected option, bottom left (the menu fills the right side)
       const it = items[this.menu];
-      const tip = it.startsWith('WINGMAN') ? 'A GUARDIAN ANGEL FLIES WITH YOU AND SPLASHES NEARBY ENEMIES.'
+      const tip = it === 'BACKUP' ? 'SAVE YOUR PROGRESS TO A FILE, OR LOAD IT BACK.'
         : it.startsWith('SKIN') && sk ? `NEXT SKIN: ${sk[1]} - ${sk[2]}`
           : it.startsWith('NAME') ? 'YOUR NAME ON THE LEADERBOARD.' : '';
       if (tip) { this.panel(8, 160, 196, 34, 0.9); FONT.wrap(tip, 30).forEach((l, i) => FONT.draw(ctx, l, 16, 166 + i * 9, '#b5ecfc', { shadow: '#061040' })); }
+    }
+    if (this.sub === 'backup') {
+      const it = items[this.menu];
+      const tip = this.backupMsg || (it.startsWith('SAVE') ? `ONE FILE WITH YOUR ADVENTURE, SCORES AND AWARDS. LAST BACKUP: ${this.meta.lastBackup || 'NEVER'}`
+        : it.startsWith('LOAD') ? 'CHOOSE A BACKUP FILE. IT REPLACES THE PROGRESS IN THIS BROWSER.'
+          : it.startsWith('RESTORE') ? 'BRING BACK THE ADVENTURE THAT WAS REPLACED BY NEW GAME.' : '');
+      if (tip) { this.panel(8, 150, 196, 44, 0.9); FONT.wrap(tip, 30).forEach((l, i) => FONT.draw(ctx, l, 16, 156 + i * 9, this.backupMsg ? '#ffe680' : '#b5ecfc', { shadow: '#061040' })); }
     }
     if (this.confirmErase) {
       ctx.fillStyle = 'rgba(2,4,20,0.6)'; ctx.fillRect(0, 0, VIEW_W, VIEW_H);
       this.panel(60, 80, VIEW_W - 120, 52);
       FONT.draw(ctx, 'START A NEW GAME?', VIEW_W / 2, 90, '#ffe680', { align: 'center', shadow: '#061040' });
-      FONT.draw(ctx, 'LEVEL PROGRESS RESTARTS. AWARDS STAY.', VIEW_W / 2, 103, '#ffffff', { align: 'center', shadow: '#061040' });
+      FONT.draw(ctx, 'LEVELS RESTART. AWARDS STAY. CAN BE UNDONE.', VIEW_W / 2, 103, '#ffffff', { align: 'center', shadow: '#061040' });
       FONT.draw(ctx, 'Z / ENTER = YES      X / ESC = NO', VIEW_W / 2, 118, '#b5ecfc', { align: 'center', shadow: '#061040' });
     }
     FONT.draw(ctx, 'ARROWS + Z TO SELECT', 8, VIEW_H - 12, '#ffffff', { shadow: '#061040' });

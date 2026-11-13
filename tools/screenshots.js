@@ -41,11 +41,14 @@ const SHOTS = {
   'name-entry': () => { GAME.askName(() => {}); GAME.nameEdit.text = 'PICHON'; T.step(5); Input.setTyping(false); },
   'ending': () => { GAME.state = 'ending'; GAME.say(STORY_ENDING.slice(3)); T.step(160); },
   'wingman': () => {
-    GAME.save.wing = true; T.play(1); T.bot(250, { god: true });
-    const w = GAME.world, p = w.player; const e = w.enemies.find(x => !x.dead) || w.enemies[0];
-    if (e) { e.x = p.x + 80; e.y = p.y - 20; e.ox = e.x; e.oy = e.y; }
-    w.wing.cool = 0; T.step(9);
+    GAME.save.best = { 5: 90 }; GAME.save.angelXp = 20; GAME.save.air = 100;
+    T.play(1); T.bot(250, { god: true });
+    const w = GAME.world, p = w.player; GAME.save.air = 100; GAME.callAngel();
+    const e = w.enemies.find(x => !x.dead) || w.enemies[0];
+    if (e) { e.x = p.x + 90; e.y = p.y - 24; e.ox = e.x; e.oy = e.y; }
+    T.step(50, i => { p.inv = 2; if (i === 44) Input.pressed.add('shoot'); });
   },
+  'backup': () => { GAME.save.started = true; GAME.state = 'title'; GAME.sub = 'backup'; GAME.menu = 0; GAME.backupMsg = ''; T.step(20); },
   'secret-room': () => {
     T.play(3); const w = GAME.world, p = w.player; w.enemies = [];
     p.x = 47 * 16 + 3; p.y = 12 * 16 - 19; w.snapCamera();
@@ -68,7 +71,7 @@ const SHOTS = {
     T.play(2); T.bot(210, { god: true }); GAME.world.player.hp = 2; GAME.toasts = []; GAME.dialog = null; GAME.toast('ACHIEVEMENT!', 'CLEANING SPREE'); T.step(30); GAME.dialog = null;
     GAME.keepToast = true;
   },
-  'leaderboard': () => { GAME.save.hard = false; GAME.meta.skin = 'blue'; GAME.applySkin(); GAME.save.name = 'PICHON'; boardSubmit(GAME.save); GAME.openBoard(); T.step(30); },
+  'leaderboard': () => { GAME.sub = null; GAME.save.hard = false; GAME.meta.skin = 'blue'; GAME.applySkin(); GAME.save.name = 'PICHON'; boardSubmit(GAME.save); GAME.openBoard(); T.step(30); },
 };
 
 (async () => {
