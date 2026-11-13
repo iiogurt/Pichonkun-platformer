@@ -504,7 +504,9 @@
     const ctx = this.ctx, d = this.dialog;
     const line = d.lines[d.i];
     const P = PORTRAITS[line.who] || PORTRAITS.narrator;
-    const x = 8, h = 64, y = VIEW_H - h - 6, w = VIEW_W - 16;
+    // during play the box moves to the top when it would cover Pichonkun and whoever is talking
+    const wd = this.world, low = wd && this.state === 'play' && wd.player.y - wd.cam.y > VIEW_H / 2 - 20;
+    const x = 8, h = 64, y = low ? 24 : VIEW_H - h - 6, w = VIEW_W - 16;
     this.panel(x, y, w, h);
     let tx = x + 9;
     let spr = P.spr ? SPR[P.spr] : null;
