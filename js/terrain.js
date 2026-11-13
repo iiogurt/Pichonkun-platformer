@@ -294,7 +294,7 @@ const TERRAIN = (() => {
       this.chunks = new Map();
       this.nChunks = Math.ceil(world.W / CH_W);
       // static copy of the grid (gates/doors/crumble blocks are drawn as sprites)
-      this.g = world.grid.map(r => r.map(c => ('#=i-^'.includes(c) ? c : ' ')));
+      this.g = world.grid.map(r => r.map(c => (c === '%' ? '#' : '#=i-^'.includes(c) ? c : ' ')));
       this.crumble = this.makeCrumble();
     }
     at(tx, ty) { const W = this.w; if (tx < 0 || tx >= W.W) return '#'; if (ty < 0) return ' '; if (ty >= W.H) return this.g[W.H - 1][tx] === '#' ? '#' : ' '; return this.g[ty][tx]; }

@@ -2,7 +2,8 @@
 'use strict';
 const VIEW_W = 384, VIEW_H = 216, RES = 2;
 const SAVE_KEY = 'pichonkun_save_v1';
-const GAME_VERSION = '1.1.1';
+const BOARD_KEY = 'pichonkun_scores_v1';
+const GAME_VERSION = '1.2.0';
 
 // ================================================================== INPUT
 const Input = (() => {
@@ -36,8 +37,11 @@ const Input = (() => {
 const CONFIRM = ['confirm', 'jump', 'interact', 'shoot'];
 
 // =================================================================== SAVE
+const newRunId = () => Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36);
+// Score state of the level being played. Kept across deaths, stored with every auto-save.
+const newRun = () => ({ score: 0, time: 0, hits: 0, deaths: 0, kills: [], crystals: [], secrets: [], miss: {}, leverMiss: 0, bossDmg: 0, boss: false, bestCombo: 0 });
 function defaultSave() {
-  return { unlocked: 1, level: 0, cp: null, vapor: false, best: {}, stats: { kills: 0, deaths: 0, hits: 0 }, started: false, finished: false, music: true, sfx: true, gfx: 'high', gfxAuto: true };
+  return { unlocked: 1, level: 0, cp: null, vapor: false, best: {}, hi: {}, cry: {}, name: '', runId: newRunId(), stats: { kills: 0, deaths: 0, hits: 0 }, started: false, finished: false, music: true, sfx: true, gfx: 'high', gfxAuto: true };
 }
 function loadSave() {
   try {
@@ -47,6 +51,33 @@ function loadSave() {
   return defaultSave();
 }
 function writeSave(s) { try { localStorage.setItem(SAVE_KEY, JSON.stringify(s)); } catch { /* storage full or blocked */ } }
+
+// ============================================================ LEADERBOARD
+// A local top-10 table (this browser only). The friends of Breezeville hold the
+// starting scores so there is always somebody to beat.
+const BOARD_SIZE = 10;
+const BOARD_SEED = [['GRN', 60000], ['LEA', 48000], ['MSH', 38000], ['FRO', 29000], ['BUZ', 21000], ['DST', 14000], ['MLD', 8000], ['SMG', 3000]];
+const NAME_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ';
+function loadBoard() {
+  try {
+    const b = JSON.parse(localStorage.getItem(BOARD_KEY));
+    if (Array.isArray(b) && b.every(e => e && typeof e.name === 'string' && typeof e.score === 'number')) return b;
+  } catch { /* corrupt or unavailable storage: start with the seed table */ }
+  return BOARD_SEED.map(([name, score]) => ({ name, score, npc: true, cleared: 0 }));
+}
+function writeBoard(b) { try { localStorage.setItem(BOARD_KEY, JSON.stringify(b)); } catch { /* storage full or blocked */ } }
+const totalScore = (save) => Object.values(save.hi).reduce((n, h) => n + h.score, 0);
+// Put the current player's total on the board (one row per New Game). Returns their place (0-based) or -1.
+function boardSubmit(save) {
+  if (!save.name) return -1;
+  const score = totalScore(save);
+  let b = loadBoard().filter(e => e.id !== save.runId);
+  if (score > 0) b.push({ id: save.runId, name: save.name, score, cleared: Object.keys(save.hi).length });
+  b.sort((x, y) => y.score - x.score);
+  b = b.slice(0, BOARD_SIZE);
+  writeBoard(b);
+  return b.findIndex(e => e.id === save.runId);
+}
 
 // =================================================================== GAME
 class Game {
@@ -62,6 +93,8 @@ class Game {
     this.saveFlash = 0; this.saveLabel = '';
     this.stats = this.save.stats;
     this.collected = [];
+    this.run = newRun();
+    this.tally = null; this.nameEdit = null; this.board = null; this.scorePop = 0;
     this.confirmErase = false;
     this.iris = 0;          // >0: iris-in transition frames remaining
     this.terrainCache = null;
@@ -78,6 +111,7 @@ class Game {
         solved: w.riddles.filter(r => r.solved).map(r => r.idx),
         levers: !!w.leversSolved,
         collected: this.collected.slice(),
+        run: JSON.parse(JSON.stringify(this.run)),
       };
     }
     this.save.started = true;
@@ -90,6 +124,8 @@ class Game {
   // ------------------------------------------------------------ flow
   startLevel(idx, cp) {
     this.collected = cp && cp.collected ? cp.collected.slice() : [];
+    this.run = Object.assign(newRun(), cp && cp.run ? JSON.parse(JSON.stringify(cp.run)) : {});
+    this.tally = null;
     this.world = new World(this, idx, cp);
     this.dialog = null; this.riddle = null;
     this.state = 'intro'; this.introT = 0; this.iris = 0;
@@ -108,11 +144,33 @@ class Game {
     this.iris = 45;
     AUDIO.playMusic(LEVELS[w.idx].music);
   }
+  addScore(n) { this.run.score += n; this.scorePop = 12; }
+  // Add up the end-of-level bonuses and decide the rank.
+  makeTally() {
+    const w = this.world, r = this.run, S = SCORE;
+    const secs = Math.floor(r.time / 60);
+    const lines = [['LEVEL SCORE', r.score], ['LEVEL CLEAR', S.clear]];
+    const timeB = Math.max(0, w.parTime() - secs) * S.timePerSec;
+    lines.push([`TIME ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`, timeB]);
+    if (r.hits === 0) lines.push(['NO DAMAGE', S.noHit]);
+    else if (r.deaths === 0) lines.push(['NO DEATHS', S.noDeath]);
+    if (w.drops === w.dropsTotal) lines.push(['ALL WATER DROPS', S.allDrops]);
+    if (w.crystalTotal && r.crystals.length === w.crystalTotal) lines.push(['ALL CRYSTALS', S.allCrystals]);
+    const total = lines.reduce((n, l) => n + l[1], 0);
+    return { lines, total, rank: rankFor(total, w.parScore), crystals: r.crystals.length, crystalTotal: w.crystalTotal, combo: r.bestCombo };
+  }
   levelComplete() {
     if (this.state !== 'play') return;
     const w = this.world;
     const prev = this.save.best[w.idx] || 0;
     this.save.best[w.idx] = Math.max(prev, w.drops);
+    const t = this.tally = this.makeTally();
+    const old = this.save.hi[w.idx];
+    t.prev = old ? old.score : 0; t.isBest = !old || t.total > old.score;
+    if (t.isBest) this.save.hi[w.idx] = { score: t.total, rank: t.rank, time: Math.floor(this.run.time / 60) };
+    this.save.cry[w.idx] = [...new Set([...(this.save.cry[w.idx] || []), ...this.run.crystals])].sort();
+    t.grand = totalScore(this.save);
+    t.place = boardSubmit(this.save);
     this.save.unlocked = Math.max(this.save.unlocked, Math.min(LEVELS.length, w.idx + 2));
     this.save.level = Math.min(LEVELS.length - 1, w.idx + 1);
     this.save.cp = null;
@@ -164,18 +222,57 @@ class Game {
       case 'pause': this.updatePause(); break;
       case 'clear':
         this.clearT++;
-        if (this.clearT > 60 && Input.any(...CONFIRM)) {
-          const w = this.world;
-          if (w.idx === LEVELS.length - 1) this.startEnding();
-          else this.startLevel(w.idx + 1);
+        if (this.clearT > 90 && Input.any(...CONFIRM)) {
+          if (!this.save.name) this.askName(() => this.afterClear());
+          else this.afterClear();
         }
+        break;
+      case 'name': this.updateName(); break;
+      case 'board':
+        this.boardT++;
+        if (this.boardT > 20 && Input.any(...CONFIRM, 'pause')) { AUDIO.sfx('select'); this.state = 'title'; this.menu = 0; AUDIO.playMusic('title'); }
         break;
       case 'ending': if (!this.dialog) { this.state = 'credits'; this.creditT = 0; } break;
       case 'credits':
         this.creditT++;
-        if (this.creditT > 120 && Input.any(...CONFIRM)) { this.state = 'title'; this.menu = 0; AUDIO.playMusic('title'); }
+        if (this.creditT > 120 && Input.any(...CONFIRM)) this.openBoard();
         break;
     }
+  }
+
+  afterClear() {
+    const w = this.world;
+    if (w.idx === LEVELS.length - 1) this.startEnding();
+    else this.startLevel(w.idx + 1);
+  }
+  // Arcade-style initials: up/down change the letter, jump confirms it, shoot goes back.
+  askName(done) {
+    const last = (this.save.lastName || 'AAA').padEnd(3, ' ');
+    this.nameEdit = { chars: [...last].slice(0, 3).map(c => Math.max(0, NAME_CHARS.indexOf(c))), pos: 0, done, t: 0 };
+    this.state = 'name';
+  }
+  updateName() {
+    const e = this.nameEdit, n = NAME_CHARS.length;
+    e.t++;
+    if (Input.hit('up')) { e.chars[e.pos] = (e.chars[e.pos] + 1) % n; AUDIO.sfx('select'); }
+    if (Input.hit('down')) { e.chars[e.pos] = (e.chars[e.pos] + n - 1) % n; AUDIO.sfx('select'); }
+    if (Input.hit('left') || Input.hit('shoot')) { e.pos = Math.max(0, e.pos - 1); AUDIO.sfx('select'); }
+    else if (Input.hit('right') && e.pos < 2) { e.pos++; AUDIO.sfx('select'); }
+    else if (e.t > 10 && Input.any('confirm', 'jump', 'interact')) {
+      AUDIO.sfx('confirm');
+      if (e.pos < 2) { e.pos++; return; }
+      const name = e.chars.map(c => NAME_CHARS[c]).join('').trim() || 'AAA';
+      this.save.name = this.save.lastName = name;
+      writeSave(this.save);
+      if (this.tally) this.tally.place = boardSubmit(this.save);
+      this.nameEdit = null;
+      e.done();
+    }
+  }
+  openBoard() {
+    this.board = loadBoard(); this.boardT = 0;
+    this.state = 'board';
+    AUDIO.playMusic('title');
   }
 
   updateDialog() {
@@ -201,6 +298,7 @@ class Game {
     if (this.save.started) items.push('CONTINUE');
     items.push('NEW GAME');
     if (this.save.unlocked > 1) items.push('LEVEL SELECT');
+    items.push('LEADERBOARD');
     items.push('MUSIC: ' + (this.save.music ? 'ON' : 'OFF'));
     items.push('SOUND FX: ' + (this.save.sfx ? 'ON' : 'OFF'));
     items.push('GRAPHICS: ' + (this.save.gfx === 'low' ? 'FAST' : 'FANCY'));
@@ -212,8 +310,8 @@ class Game {
     if (this.confirmErase) {
       if (Input.any('confirm', 'jump')) {
         this.confirmErase = false;
-        const m = this.save.music, s = this.save.sfx;
-        this.save = defaultSave(); this.save.music = m; this.save.sfx = s;
+        const m = this.save.music, s = this.save.sfx, ln = this.save.lastName, gf = this.save.gfx, ga = this.save.gfxAuto;
+        this.save = defaultSave(); this.save.music = m; this.save.sfx = s; this.save.lastName = ln; this.save.gfx = gf; this.save.gfxAuto = ga;
         this.stats = this.save.stats; writeSave(this.save);
         this.beginStory();
       } else if (Input.any('pause', 'shoot')) { this.confirmErase = false; AUDIO.sfx('select'); }
@@ -228,6 +326,7 @@ class Game {
       AUDIO.sfx('confirm');
       if (it === 'CONTINUE') this.startLevel(this.save.level, this.save.cp);
       else if (it === 'NEW GAME') { if (this.save.started) this.confirmErase = true; else this.beginStory(); }
+      else if (it === 'LEADERBOARD') this.openBoard();
       else if (it === 'LEVEL SELECT') { this.state = 'levelselect'; this.lsSel = Math.min(this.save.unlocked - 1, this.save.level); }
       else if (it.startsWith('MUSIC')) { this.save.music = !this.save.music; AUDIO.setMusic(this.save.music); writeSave(this.save); }
       else if (it.startsWith('SOUND')) { this.save.sfx = !this.save.sfx; AUDIO.setSfx(this.save.sfx); writeSave(this.save); AUDIO.sfx('confirm'); }
@@ -260,6 +359,8 @@ class Game {
       left: Input.is('left'), right: Input.is('right'), up: Input.is('up'), down: Input.is('down'),
       jump: Input.is('jump'), jumpPressed: Input.hit('jump'), shootPressed: Input.hit('shoot'),
     };
+    this.run.time++;
+    if (this.scorePop > 0) this.scorePop--;
     w.update(inp);
   }
 
@@ -275,10 +376,13 @@ class Game {
         AUDIO.sfx('right');
         this.riddle = null;
         this.world.solveRiddle(r.ri);
-        this.world.float(this.world.player.x - 14, this.world.player.y - 20, 'CORRECT!', '#7cff4f');
+        const pts = SCORE.riddle[Math.min(SCORE.riddle.length - 1, this.run.miss[r.ri] || 0)];
+        this.addScore(pts);
+        this.world.float(this.world.player.x - 24, this.world.player.y - 20, `CORRECT! +${pts}`, '#7cff4f');
         this.saveGame('RIDDLE SOLVED');
       } else {
         AUDIO.sfx('wrong');
+        this.run.miss[r.ri] = (this.run.miss[r.ri] || 0) + 1;
         r.msg = 'NOT QUITE! HINT: ' + r.r.hint; r.msgCol = '#ff9a8a';
       }
     }

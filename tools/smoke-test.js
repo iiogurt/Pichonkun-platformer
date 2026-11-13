@@ -104,17 +104,19 @@ test('checkpoint auto-saves and Continue restores it', async page => {
 test('clearing a level unlocks the next and saves', async page => {
   const r = await page.evaluate(() => {
     localStorage.clear(); GAME.save = defaultSave();
-    T.play(0); GAME.levelComplete(); T.step(70);
+    T.play(0); GAME.levelComplete(); T.step(100);
     Input.pressed.add('confirm'); T.step(1);
+    const asked = GAME.state;                       // first clear of a new game asks for initials
+    for (let i = 0; i < 3; i++) { T.step(12); Input.pressed.add('confirm'); T.step(1); }
     const s = JSON.parse(localStorage.getItem(SAVE_KEY));
-    return { unlocked: s.unlocked, state: GAME.state, level: GAME.world.idx };
+    return { unlocked: s.unlocked, asked, name: s.name, state: GAME.state, level: GAME.world.idx };
   });
-  assert.deepStrictEqual(r, { unlocked: 2, state: 'intro', level: 1 });
+  assert.deepStrictEqual(r, { unlocked: 2, asked: 'name', name: 'AAA', state: 'intro', level: 1 });
 });
 
 test('final level clear plays the ending and credits', async page => {
   const r = await page.evaluate(() => {
-    T.play(9); GAME.levelComplete(); T.step(70);
+    T.play(9); GAME.levelComplete(); T.step(100);
     Input.pressed.add('confirm'); T.step(1);
     let guard = 0;
     while (GAME.dialog && guard++ < 5000) { Input.pressed.add('confirm'); GAME.update(); Input.endFrame(); }
@@ -124,11 +126,86 @@ test('final level clear plays the ending and credits', async page => {
   assert.strictEqual(r, 'credits');
 });
 
+test('every level has 3 crystals; collecting one scores and is remembered', async page => {
+  const r = await page.evaluate(() => {
+    localStorage.clear(); GAME.save = defaultSave();
+    const counts = LEVELS.map((_, i) => { T.play(i); return GAME.world.crystalTotal; });
+    T.play(0);
+    const w = GAME.world, c = w.objects.find(o => o.type === 'crystal' && !o.hidden);
+    w.player.x = c.x; w.player.y = c.y; T.step(8);
+    const score = GAME.run.score, got = GAME.run.crystals.slice();
+    GAME.respawn();
+    const again = GAME.world.objects.find(o => o.type === 'crystal' && o.id === c.id);
+    const saved = JSON.parse(localStorage.getItem(SAVE_KEY)).cp.run.crystals;
+    return { counts, score, got, stillGone: again.dead, saved };
+  });
+  assert.deepStrictEqual(r.counts, new Array(10).fill(3));
+  assert.ok(r.score >= 500, `score was ${r.score}`);
+  assert.deepStrictEqual(r.got, r.saved);
+  assert.ok(r.stillGone, 'crystal came back after respawn');
+});
+
+test('secret walls: solid for shots and enemies, open for Pichonkun, reveal pays once', async page => {
+  const r = await page.evaluate(() => {
+    localStorage.clear(); GAME.save = defaultSave();
+    T.play(1);
+    const w = GAME.world, sc = w.secrets[0], [tx, ty] = sc.tiles[0];
+    const solidForOthers = w.solidAt(tx, ty);
+    w.ghost = true; const openForPlayer = !w.solidAt(tx, ty); w.ghost = false;
+    w.player.x = tx * 16 + 3; w.player.y = ty * 16 - 2; w.player.vy = 0; T.step(3);
+    const first = GAME.run.score;
+    GAME.respawn(); const w2 = GAME.world;
+    w2.player.x = tx * 16 + 3; w2.player.y = ty * 16 - 2; T.step(3);
+    return { n: w.secrets.length, solidForOthers, openForPlayer, revealed: sc.revealed, first, second: GAME.run.score, kept: w2.secrets[0].revealed };
+  });
+  assert.ok(r.n >= 1 && r.solidForOthers && r.openForPlayer && r.revealed && r.kept);
+  assert.ok(r.first >= 250, `reveal paid ${r.first}`);
+  assert.strictEqual(r.second, r.first, 'secret paid twice');
+});
+
+test('combo: quick kills multiply, each enemy pays once per run', async page => {
+  const r = await page.evaluate(() => {
+    localStorage.clear(); GAME.save = defaultSave();
+    T.play(0);
+    const w = GAME.world, [a, b] = w.enemies;
+    w.damageEnemy(a, 9, 1); const s1 = GAME.run.score;
+    w.damageEnemy(b, 9, 1); const s2 = GAME.run.score - s1;
+    const base = ENEMY_DEFS[b.ch].hp * SCORE.killPerHp;
+    GAME.respawn();
+    const again = GAME.world.enemies.find(e => e.id === a.id);
+    GAME.world.damageEnemy(again, 9, 1);
+    return { s1, s2, base, combo: w.combo, after: GAME.run.score - s1 - s2 };
+  });
+  assert.ok(r.s1 > 0);
+  assert.strictEqual(r.s2, r.base * 2, 'second quick kill should be doubled');
+  assert.strictEqual(r.after, 0, 'respawned enemy paid again');
+});
+
+test('level clear tallies a rank, stores the best score and updates the leaderboard', async page => {
+  const r = await page.evaluate(() => {
+    localStorage.clear(); GAME.save = defaultSave(); GAME.save.name = 'TST';
+    T.play(0); GAME.run.score = 2000; GAME.levelComplete(); T.step(200); GAME.render();
+    const t = GAME.tally, hi = GAME.save.hi[0];
+    const board = JSON.parse(localStorage.getItem(BOARD_KEY));
+    T.play(0); GAME.run.score = 10; GAME.run.hits = 2; GAME.run.time = 60 * 999; GAME.levelComplete();
+    const board2 = JSON.parse(localStorage.getItem(BOARD_KEY));
+    GAME.openBoard(); T.step(5); GAME.render();
+    return { total: t.total, rank: t.rank, hi: hi.score, row: board.find(e => e.id === GAME.save.runId), sorted: board.every((e, i) => !i || board[i - 1].score >= e.score), n: board.length, keptBest: GAME.save.hi[0].score, rows2: board2.filter(e => e.id === GAME.save.runId).length, state: GAME.state };
+  });
+  assert.ok(r.total > 2000 && 'SABCD'.includes(r.rank));
+  assert.strictEqual(r.hi, r.total);
+  assert.ok(r.row && r.row.name === 'TST' && r.row.score === r.total, 'player row missing from the board');
+  assert.ok(r.sorted && r.n <= 10);
+  assert.strictEqual(r.keptBest, r.total, 'a worse replay overwrote the best score');
+  assert.strictEqual(r.rows2, 1, 'player should have exactly one row');
+  assert.strictEqual(r.state, 'board');
+});
+
 test('audio engine runs every track and sound effect', async page => {
   await page.evaluate(() => {
     AUDIO.init();
     ['title', 'meadow', 'city', 'duct', 'ice', 'drain', 'factory', 'boss', 'sky', 'victory', 'ending'].forEach(t => AUDIO.playMusic(t));
-    ['jump', 'shoot', 'stomp', 'kill', 'drop', 'hurt', 'checkpoint', 'right', 'wrong', 'gate', 'bossDie', 'powerup', 'save'].forEach(s => AUDIO.sfx(s));
+    ['jump', 'shoot', 'stomp', 'kill', 'drop', 'hurt', 'checkpoint', 'right', 'wrong', 'gate', 'bossDie', 'powerup', 'save', 'crystal', 'secret', 'combo'].forEach(s => AUDIO.sfx(s));
     AUDIO.stopMusic();
   });
 });

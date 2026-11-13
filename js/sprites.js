@@ -504,6 +504,21 @@ const OUTL = { navy: [13, 27, 94], dark: [16, 12, 26] };
       return clamp(t);
     }, '#3a0412'));
     SPR.heartEmpty = mkSpr(part(18, 16, (x, y) => heartSdf(x, y, 9, 7, 1.15), RAMPS.smog, () => [20, 26, 60, 150], '#0d1b5e'));
+    // air crystal: the hidden treasure (3 per level), a faceted golden gem with a travelling glint
+    const gem = (W, H, f) => {
+      const cx = W / 2, cy = H / 2, rx = W / 2 - 2.5, ry = H / 2 - 2.5;
+      return part(W, H, (x, y) => (Math.abs(x - cx) / rx + Math.abs(y - cy) / ry - 1) * Math.min(rx, ry) * 0.7, RAMPS.gold, (x, y, d) => {
+        const X = x - cx, Y = y - cy;
+        let t = X < 0 ? (Y < -ry * 0.25 ? 0.72 : 0.3) : (Y < -ry * 0.25 ? 0.95 : 0.52);
+        if (Math.abs(Y + ry * 0.25) < 0.6) t += 0.14;                       // girdle
+        if (Math.abs(X) < 0.6 && Y > -ry * 0.25) t -= 0.12;                  // keel
+        if (f >= 0 && Math.abs(X + Y * 0.6 - (f * 5 - 7.5)) < 1.1 && d < -0.8) t = 1; // glint
+        return clamp(t);
+      }, '#4a2000');
+    };
+    SPR.crystal = [0, 1, 2, 3].map(f => mkSpr(gem(22, 28, f), 0));
+    SPR.crystalIcon = mkSpr(gem(14, 16, -1), 0);
+    SPR.crystalEmpty = mkSpr(part(14, 16, (x, y) => (Math.abs(x - 7) / 4.5 + Math.abs(y - 8) / 5.5 - 1) * 3.2, RAMPS.smog, () => [20, 26, 60, 150], '#0d1b5e'), 0);
     // projectiles (face right)
     SPR.shot = [0, 1].map(f => mkSpr(part(18, 12, (x, y) => S.cone(x, y, 12, 6, 4.2, 2 + f * 2, 6, 0.6), RAMPS.water, (x, y) => {
       let t = 0.45 + sphereLight(x, y, 12, 6, 5.5) * 0.45;

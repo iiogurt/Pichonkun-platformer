@@ -22,6 +22,16 @@ const BOSS_INFO = {
   },
 };
 
+// Every way to earn points, in one place.
+const SCORE = {
+  drop: 10, killPerHp: 100, stomp: 50, comboFrames: 150, comboMax: 5,
+  bossHit: 100, boss: 3000, riddle: [500, 250, 100], lever: [500, 250, 100],
+  crystal: 500, secret: 250, spareHeart: 200,
+  clear: 1000, timePerSec: 20, noHit: 1500, noDeath: 500, allDrops: 1000, allCrystals: 1500,
+  ranks: [['S', 0.9], ['A', 0.7], ['B', 0.5], ['C', 0.3], ['D', 0]],
+};
+const rankFor = (score, par) => SCORE.ranks.find(r => score >= par * r[1])[0];
+
 class World {
   constructor(game, levelIdx, checkpoint) {
     this.game = game;
@@ -36,6 +46,8 @@ class World {
     this.crumble = new Map();
     this.riddles = []; this.levers = []; this.leverSeq = [];
     this.dropsTotal = 0; this.drops = 0;
+    this.crystalTotal = 0; this.secrets = []; this.secretOf = new Map();
+    this.combo = 0; this.comboT = 0; this.ghost = false;
     this.boss = null; this.bossActive = false; this.bossDefeated = false;
     this.t = 0; this.shake = 0; this.hitstop = 0;
     this.exit = null;
@@ -61,6 +73,14 @@ class World {
         for (const o of this.objects) if (o.type === 'drop' && checkpoint.collected.includes(o.id)) { o.dead = true; this.drops++; }
       }
     }
+    // crystals and secret rooms already found during this run stay found
+    const run = game.run;
+    for (const o of this.objects) if (o.type === 'crystal' && run.crystals.includes(o.id)) o.dead = true;
+    for (const sc of this.secrets) if (run.secrets.includes(sc.id)) {
+      sc.revealed = true; sc.a = 1;
+      for (const o of this.objects) if (o.type === 'crystal' && this.secretAt(o) === sc) o.hidden = false;
+    }
+    this.parScore = this.calcParScore();
     this.player.lastSafe = { x: this.player.x, y: this.player.y };
     this.cam = { x: 0, y: 0 };
     this.snapCamera();
@@ -69,7 +89,7 @@ class World {
   parse() {
     const g = this.grid;
     const riddlePos = [];
-    let signI = 0, npcI = 0, leverI = 0, dropId = 0;
+    let signI = 0, npcI = 0, leverI = 0, dropId = 0, crystalId = 0, enemyId = 0;
     // Scan column-major so ordering follows left->right progress.
     for (let x = 0; x < this.W; x++) for (let y = 0; y < this.H; y++) {
       const c = g[y][x];
@@ -78,6 +98,14 @@ class World {
       switch (c) {
         case 'P': this.start = { x: px + 3, y: py + TILE - 18 }; clear(); break;
         case 'o': this.objects.push({ type: 'drop', id: dropId++, x: px + 4, y: py + 3, w: 8, h: 9, t: x * 3 }); this.dropsTotal++; clear(); break;
+        case '*': {
+          // a crystal tucked inside a secret wall stays hidden until the wall is found
+          const hidden = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => (g[y + dy] || [])[x + dx] === '%');
+          this.objects.push({ type: 'crystal', id: crystalId++, x: px + 3, y: py + 2, w: 10, h: 12, t: x * 5, hidden });
+          this.crystalTotal++;
+          if (hidden) g[y][x] = '%'; else clear();
+          break;
+        }
         case 'H': this.objects.push({ type: 'heart', x: px + 4, y: py + 4, w: 8, h: 7, t: 0 }); clear(); break;
         case 'A': this.objects.push({ type: 'power', x: px + 2, y: py + 2, w: 12, h: 12, t: 0 }); clear(); break;
         case 'C': this.objects.push({ type: 'checkpoint', x: px, y: py, w: 16, h: 16, active: false }); clear(); break;
@@ -103,7 +131,7 @@ class World {
         case 'V': this.platforms.push({ x: px, y: py + 4, w: 48, h: 8, ox: px, oy: py + 4, axis: 'y', range: 48, t: x * 7, dx: 0, dy: 0 }); clear(); break;
         case 'B': this.boss = makeBoss(this, this.def.boss, px, py); clear(); break;
         default:
-          if (ENEMY_DEFS[c]) { this.enemies.push(makeEnemy(c, px, py)); clear(); }
+          if (ENEMY_DEFS[c]) { const e = makeEnemy(c, px, py); e.id = enemyId++; this.enemies.push(e); clear(); }
       }
     }
     // gate ownership: each gate column belongs to the closest riddle terminal on its left
@@ -113,7 +141,34 @@ class World {
       riddlePos.forEach((rx, i) => { if (rx < x) owner = i; });
       this.gateOwner.set(x + ',' + y, owner);
     }
+    // secret walls ('%'): look solid, but Pichonkun can walk through. Group touching tiles into rooms.
+    for (let x = 0; x < this.W; x++) for (let y = 0; y < this.H; y++) {
+      if (g[y][x] !== '%' || this.secretOf.has(x + ',' + y)) continue;
+      const sc = { id: this.secrets.length, tiles: [], revealed: false, a: 0 };
+      const todo = [[x, y]];
+      this.secretOf.set(x + ',' + y, sc);
+      while (todo.length) {
+        const [cx, cy] = todo.pop();
+        sc.tiles.push([cx, cy]);
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const nx = cx + dx, ny = cy + dy, k = nx + ',' + ny;
+          if ((g[ny] || [])[nx] === '%' && !this.secretOf.has(k)) { this.secretOf.set(k, sc); todo.push([nx, ny]); }
+        }
+      }
+      this.secrets.push(sc);
+    }
   }
+  // What a very good run of this level is worth; ranks are a share of this.
+  calcParScore() {
+    const S = SCORE, d = this.def;
+    let n = this.dropsTotal * S.drop + S.clear + S.allDrops + S.noHit;
+    for (const e of this.enemies) n += ENEMY_DEFS[e.ch].hp * S.killPerHp;
+    n += (d.riddles || []).length * S.riddle[0] + (d.levers ? S.lever[0] : 0);
+    if (this.boss) n += S.boss + this.boss.maxHp * S.bossHit;
+    n += this.crystalTotal * S.crystal + (this.crystalTotal ? S.allCrystals : 0) + this.secrets.length * S.secret;
+    return n + Math.round(this.parTime() * 0.35) * S.timePerSec;
+  }
+  parTime() { return this.W + (this.boss ? 60 : 0); }
 
   // ---------------------------------------------------------------- tiles
   tile(tx, ty) {
@@ -124,6 +179,7 @@ class World {
   solidAt(tx, ty) {
     const c = this.tile(tx, ty);
     if (c === 'x') { const s = this.crumble.get(tx + ',' + ty); return !(s && s.broken); }
+    if (c === '%') return !this.ghost; // secret wall: solid for everything except Pichonkun
     return c === '#' || c === '=' || c === 'i' || c === '<' || c === '>' || c === 'G' || c === 'D';
   }
   oneWayAt(tx, ty) { return this.tile(tx, ty) === '-'; }
@@ -212,7 +268,9 @@ class World {
         if (!(p.x < tx * TILE + 16 && p.x + p.w > tx * TILE && p.y < ty * TILE + 16 && p.y + p.h > ty * TILE)) this.crumble.delete(k);
       }
     }
-    this.player.update(input);
+    if (this.comboT > 0 && --this.comboT === 0) this.combo = 0;
+    this.ghost = true; this.player.update(input); this.ghost = false;
+    this.checkSecrets();
     for (const e of this.enemies) if (!e.dead && Math.abs(e.x - this.player.x) < VIEW_W * 1.2) updateEnemy(this, e);
     if (this.boss && !this.boss.dead) updateBoss(this, this.boss);
     this.updateShots();
@@ -274,12 +332,25 @@ class World {
           if (overlap(p, o)) {
             o.dead = true; this.drops++; this.game.collected.push(o.id);
             AUDIO.sfx('drop'); this.burst(o.x + 4, o.y + 4, '#5fd4ff', 6, 1.5);
+            this.game.addScore(SCORE.drop);
+          }
+          break;
+        case 'crystal':
+          if (overlap(p, o)) {
+            o.dead = true; this.game.run.crystals.push(o.id);
+            AUDIO.sfx('crystal'); this.hitstop = 4;
+            this.burst(o.x + 5, o.y + 6, '#ffe060', 22, 2.6); this.burst(o.x + 5, o.y + 6, '#ffffff', 10, 1.6);
+            this.ring(o.x + 5, o.y + 6, '#ffe060', 26);
+            this.game.addScore(SCORE.crystal);
+            this.float(o.x - 14, o.y - 8, `CRYSTAL! +${SCORE.crystal}`, '#ffe060');
+            this.game.saveGame('CRYSTAL FOUND');
           }
           break;
         case 'heart':
           if (overlap(p, o)) {
-            o.dead = true; p.hp = Math.min(p.maxHp, p.hp + 1); AUDIO.sfx('heart');
-            this.float(o.x, o.y, '+1', '#ff7a9a'); this.burst(o.x + 4, o.y + 4, '#ff5a7a', 8);
+            o.dead = true; AUDIO.sfx('heart');
+            if (p.hp >= p.maxHp) { this.game.addScore(SCORE.spareHeart); this.float(o.x - 4, o.y, `+${SCORE.spareHeart}`, '#ffe060'); }
+            else { p.hp++; this.float(o.x, o.y, '+1', '#ff7a9a'); } this.burst(o.x + 4, o.y + 4, '#ff5a7a', 8);
           }
           break;
         case 'power':
@@ -352,12 +423,15 @@ class World {
       AUDIO.sfx('wrong');
       this.shake = 10;
       this.leverSeq = [];
+      this.game.run.leverMiss++;
       for (const l of this.levers) l.on = false;
       this.game.say([{ who: 'terminal', text: 'BZZT! Wrong order. All levers reset. HINT: ' + def.hint }]);
       return;
     }
     if (n === def.order.length) {
       this.openDoors(false);
+      const pts = SCORE.lever[Math.min(SCORE.lever.length - 1, this.game.run.leverMiss)];
+      this.game.addScore(pts); this.float(this.player.x - 6, this.player.y - 30, `+${pts}`, '#ffe060');
       this.game.saveGame('PUZZLE SOLVED');
     }
   }
@@ -392,8 +466,19 @@ class World {
       this.burst(e.x + e.w / 2, e.y + e.h / 2, '#b5ecfc', 8, 1.5);
       this.ring(e.x + e.w / 2, e.y + e.h / 2, '#ffffff', 16);
       for (let i = 0; i < 5; i++) this.particles.push({ x: e.x + e.w / 2 + (Math.random() - 0.5) * 14, y: e.y + e.h / 2 + (Math.random() - 0.5) * 12, vx: 0, vy: -0.3, life: 26 + i * 5, max: 40, col: '#ffffff', size: 1, shape: 'star', add: true });
-      this.float(e.x, e.y - 4, 'CLEAN!', '#b5ecfc');
       this.game.stats.kills++;
+      // score: each enemy pays once per run; quick chains build a combo multiplier
+      const run = this.game.run;
+      if (e.id !== undefined && !run.kills.includes(e.id)) {
+        run.kills.push(e.id);
+        this.combo = this.comboT > 0 ? this.combo + 1 : 1; this.comboT = SCORE.comboFrames;
+        const mult = Math.min(SCORE.comboMax, this.combo);
+        const pts = ENEMY_DEFS[e.ch].hp * SCORE.killPerHp * mult + (dir === 0 ? SCORE.stomp : 0);
+        this.game.addScore(pts);
+        run.bestCombo = Math.max(run.bestCombo, this.combo);
+        this.float(e.x - 4, e.y - 4, mult > 1 ? `+${pts} X${mult}` : `+${pts}`, mult > 1 ? '#ffe060' : '#b5ecfc');
+        if (mult > 1) AUDIO.sfx('combo');
+      } else this.float(e.x, e.y - 4, 'CLEAN!', '#b5ecfc');
     } else {
       AUDIO.sfx('hit');
       if (e.ground !== undefined && !ENEMY_DEFS[e.ch].fixed) e.vx += dir * 1.5;
@@ -406,7 +491,10 @@ class World {
     this.hitstop = 2;
     this.ring(b.x + b.w / 2, b.y + b.h / 2, '#ffffff', 26);
     AUDIO.sfx('bossHit');
+    const run = this.game.run, dealt = b.maxHp - Math.max(0, b.hp);
+    if (dealt > run.bossDmg) { this.game.addScore((dealt - run.bossDmg) * SCORE.bossHit); run.bossDmg = dealt; }
     if (b.hp <= 0) {
+      if (!run.boss) { run.boss = true; this.game.addScore(SCORE.boss); this.float(b.x + b.w / 2 - 14, b.y - 8, `+${SCORE.boss}`, '#ffe060'); }
       b.dead = true; this.bossDefeated = true;
       AUDIO.sfx('bossDie'); this.shake = 40;
       for (let i = 0; i < 6; i++) { this.burst(b.x + Math.random() * b.w, b.y + Math.random() * b.h, i % 2 ? '#b5ecfc' : '#888', 20, 3); this.ring(b.x + Math.random() * b.w, b.y + Math.random() * b.h, '#b5ecfc', 30 + i * 8); }
@@ -432,6 +520,28 @@ class World {
     for (let i = 0; i < 8; i++) this.particles.push({ x, y, vx: (Math.random() - 0.5) * 3, vy: -Math.random() * 2.5, life: 22, max: 22, col: i % 2 ? '#5fd4ff' : '#ffffff', size: 2, grav: 0.15 });
   }
   ring(x, y, col, r) { this.particles.push({ x, y, vx: 0, vy: 0, life: 16, max: 16, col, size: 1, shape: 'ring', r, add: true }); }
+  secretAt(o) { return this.secretOf.get(Math.floor(o.x / TILE) + ',' + Math.floor(o.y / TILE)); }
+  // Pichonkun stepping into a secret wall reveals the whole room
+  checkSecrets() {
+    const p = this.player;
+    if (!this.secrets.length || p.dead) return;
+    for (const sc of this.secrets) if (sc.revealed && sc.a < 1) sc.a = Math.min(1, sc.a + 0.08);
+    const x0 = Math.floor((p.x + 2) / TILE), x1 = Math.floor((p.x + p.w - 3) / TILE);
+    const y0 = Math.floor((p.y + 2) / TILE), y1 = Math.floor((p.y + p.h - 3) / TILE);
+    for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) {
+      const sc = this.secretOf.get(tx + ',' + ty);
+      if (!sc || sc.revealed) continue;
+      sc.revealed = true;
+      for (const o of this.objects) if (o.type === 'crystal' && this.secretAt(o) === sc) o.hidden = false;
+      if (!this.game.run.secrets.includes(sc.id)) {
+        this.game.run.secrets.push(sc.id);
+        this.game.addScore(SCORE.secret);
+        AUDIO.sfx('secret');
+        this.float(p.x - 22, p.y - 14, `SECRET! +${SCORE.secret}`, '#ffe060');
+        for (const [sx, sy] of sc.tiles) this.burst(sx * TILE + 8, sy * TILE + 8, '#ffe060', 3, 1.2);
+      }
+    }
+  }
   float(x, y, text, col) { this.floaters.push({ x, y, text, col, life: 50 }); }
   updateParticles() {
     for (const p of this.particles) {
@@ -631,7 +741,7 @@ class Player {
   hurt(dir) {
     if (this.inv > 0 || this.dead) return;
     this.hp--;
-    this.world.game.stats.hits++;
+    this.world.game.stats.hits++; this.world.game.run.hits++;
     this.inv = 80;
     this.vx = dir * 2.5; this.vy = -4;
     this.world.shake = 8;
@@ -642,7 +752,7 @@ class Player {
   hazard() {
     if (this.dead) return;
     if (this.inv <= 0) {
-      this.hp--; this.world.game.stats.hits++;
+      this.hp--; this.world.game.stats.hits++; this.world.game.run.hits++;
       AUDIO.sfx('hurt');
     }
     this.world.burst(this.x + 5, this.y + 8, '#5fd4ff', 14, 2);
@@ -652,7 +762,7 @@ class Player {
   }
   die() {
     this.dead = true; this.deadT = 0;
-    this.world.game.stats.deaths++;
+    this.world.game.stats.deaths++; this.world.game.run.deaths++;
     AUDIO.sfx('die');
     this.world.burst(this.x + 5, this.y + 8, '#5fd4ff', 30, 3);
     this.world.burst(this.x + 5, this.y + 8, '#ffffff', 15, 2);
