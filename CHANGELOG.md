@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-11-13
+
+Reasons to play again: a score, ranks, hidden treasure and a leaderboard.
+
+### Added
+
+- **Score** shown in the HUD. Points for water drops, cleaning enemies, riddles, puzzles and bosses.
+- **Combos**: cleaning enemies in quick succession multiplies the points, up to ×5.
+- **End-of-level tally** with bonuses for speed, taking no damage, collecting every drop and
+  finding every crystal, and a **rank from D to S**.
+- **30 air crystals**, three hidden in every level: above springs and updrafts, past the exit,
+  over pits, and inside secret rooms.
+- **Secret walls** that look solid but let Pichonkun through. They twinkle faintly now and then.
+- **Leaderboard**: a local top-10 table with arcade-style three-letter initials, pre-filled with
+  the residents of Breezeville. Open it from the title screen; it is also shown after the credits.
+- Level Select shows each level's rank, best score and crystals, plus the total score.
+- New sounds for crystals, secrets and combos; Leafa now hints at the crystals.
+
+### Changed
+
+- A heart picked up at full health is worth 200 points instead of being wasted.
+- The level-clear screen was redesigned around the score tally.
+- Level 10 has one extra cloud step before the boss arena.
+
+### Notes
+
+- Saves from earlier versions keep working. Scores start counting from this version.
+- The leaderboard is stored in the browser, like the save. It is not shared between devices.
+
 ## [1.1.1] - 2026-11-13
 
 ### Fixed
@@ -77,7 +106,8 @@ First public release. Play it at https://iiogurt.github.io/Pichonkun-platformer/
 - Tooling: ESLint, a level-data validator, a headless Chrome smoke test and a screenshot generator.
 - GitHub Actions for CI, GitHub Pages deployment and tagged releases.
 
-[Unreleased]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.1.1...HEAD
+[Unreleased]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.1.1...v1.2.0
 [1.1.1]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/iiogurt/Pichonkun-platformer/releases/tag/v1.0.0

@@ -55,6 +55,8 @@
       case 'play': this.drawWorld(); this.drawHUD(); if (this.riddle) this.drawRiddle(); break;
       case 'pause': this.drawWorld(); this.drawHUD(); this.drawPause(); break;
       case 'clear': this.drawWorld(); this.drawClear(); break;
+      case 'name': this.drawWorld(); this.drawClear(); this.drawName(); break;
+      case 'board': this.drawBoard(); break;
       case 'ending': this.drawEnding(); break;
       case 'credits': this.drawCredits(); break;
     }
@@ -121,6 +123,28 @@
           if ((ty & 1) === 0) L(px + 8, py + 8, 44, '#ff8a3a', 0.6, 14);
           break;
         case 'D': ctx.drawImage(SPR.door.img, px, py, 16, 16); break;
+        case '%': {
+          // secret wall: painted like solid ground. Found rooms are shown hollowed out;
+          // unfound ones give themselves away with a faint twinkle now and then.
+          const sc = w.secretOf.get(tx + ',' + ty);
+          if (sc.a > 0) {
+            ctx.fillStyle = `rgba(4,6,22,${0.8 * sc.a})`; ctx.fillRect(px, py, 16, 16);
+            // golden rim where the room meets real wall or open air
+            ctx.fillStyle = `rgba(255,216,74,${0.55 * sc.a})`;
+            const same = (dx, dy) => w.secretOf.get((tx + dx) + ',' + (ty + dy)) === sc;
+            if (!same(0, -1)) ctx.fillRect(px, py, 16, 1);
+            if (!same(0, 1)) ctx.fillRect(px, py + 15, 16, 1);
+            if (!same(-1, 0)) ctx.fillRect(px, py, 1, 16);
+            if (!same(1, 0)) ctx.fillRect(px + 15, py, 1, 16);
+            break;
+          }
+          const ph = (t + tx * 53 + ty * 97) % 210;
+          if (ph < 18 && (w.tile(tx + 1, ty) === ' ' || w.tile(tx - 1, ty) === ' ' || w.tile(tx, ty + 1) === ' ' || w.tile(tx, ty - 1) === ' ')) {
+            const r = ph < 9 ? ph / 3 : (18 - ph) / 3, sx = px + 4 + ((tx * 7 + ty * 3) % 8), sy = py + 4 + ((tx * 5 + ty * 11) % 8);
+            ctx.fillStyle = '#fff8c8'; ctx.fillRect(sx - r, sy, r * 2 + 1, 1); ctx.fillRect(sx, sy - r, 1, r * 2 + 1);
+          }
+          break;
+        }
         case 'x': {
           const s = w.crumble.get(tx + ',' + ty);
           if (s && s.broken) break;
@@ -302,6 +326,14 @@
         L(o.x + 4, o.y + 5 + bob, 26, '#7fd8ff', 0.55, 9);
         break;
       }
+      case 'crystal': {
+        if (o.hidden) break;
+        const bob = Math.sin(o.t * 0.07) * 2;
+        drawSpr(ctx, SPR.crystal[(o.t >> 3) % 8 < 4 ? (o.t >> 3) % 4 : 0], o.x - 0.5, o.y - 1 + bob);
+        L(o.x + 5, o.y + 6 + bob, 40, '#ffd84a', 0.75, 14);
+        if (o.t % 22 === 0) w.particles.push({ x: o.x + 5 + (Math.random() - 0.5) * 12, y: o.y + 6 + (Math.random() - 0.5) * 12, vx: 0, vy: -0.25, life: 24, max: 24, col: '#fff8c8', size: 1, shape: 'star', add: true });
+        break;
+      }
       case 'heart': {
         const s = 1 + Math.sin(o.t * 0.12) * 0.1;
         drawSpr(ctx, SPR.heart, o.x + 4 - 4.5 * s, o.y + 3.5 - 4 * s, false, s);
@@ -392,7 +424,7 @@
 
   G.drawHUD = function () {
     const ctx = this.ctx, w = this.world, p = w.player;
-    const pw = 82 + (p.canDouble ? 14 : 0);
+    const pw = 112 + (p.canDouble ? 14 : 0);
     this.pill(4, 4, pw, 15);
     ctx.fillStyle = 'rgba(95,212,255,0.5)'; ctx.fillRect(6, 4, pw - 4, 0.5);
     for (let i = 0; i < p.maxHp; i++) {
@@ -402,7 +434,20 @@
     ctx.fillStyle = 'rgba(95,212,255,0.35)'; ctx.fillRect(43, 7, 0.5, 9);
     drawSpr(ctx, SPR.drop[(this.t >> 4) % 4], 47, 6);
     FONT.draw(ctx, `${w.drops}/${w.dropsTotal}`, 57, 8, w.drops === w.dropsTotal ? '#ffe680' : '#d4f2ff', { shadow: '#061040' });
-    if (p.canDouble) drawSpr(ctx, SPR.power[0], 86, 8.5, false, 0.5);
+    for (let i = 0; i < w.crystalTotal; i++) drawSpr(ctx, i < this.run.crystals.length ? SPR.crystalIcon : SPR.crystalEmpty, 88 + i * 8, 7.5);
+    if (p.canDouble) drawSpr(ctx, SPR.power[0], 116, 8.5, false, 0.5);
+
+    // score + combo meter
+    const sc = String(this.run.score).padStart(6, '0'), sw = FONT.measure(sc) + 12, sx = Math.round(VIEW_W / 2 - sw / 2) + 14;
+    this.pill(sx, 4, sw, 15);
+    ctx.fillStyle = 'rgba(255,224,96,0.5)'; ctx.fillRect(sx + 2, 4, sw - 4, 0.5);
+    FONT.draw(ctx, sc, sx + 6, 8 - (this.scorePop > 8 ? 1 : 0), this.scorePop > 0 ? '#ffe680' : '#ffffff', { shadow: '#061040' });
+    if (w.combo >= 2 && w.comboT > 0) {
+      const txt = `COMBO X${Math.min(SCORE.comboMax, w.combo)}`, cw = FONT.measure(txt) + 10, bx = Math.round(sx + sw / 2 - cw / 2);
+      this.pill(bx, 21, cw, 14);
+      FONT.draw(ctx, txt, bx + 5, 24, Math.floor(this.t / 4) % 2 ? '#ffe680' : '#ffb040', { shadow: '#3a1a00' });
+      ctx.fillStyle = '#ffe680'; ctx.fillRect(bx + 3, 33, (cw - 6) * w.comboT / SCORE.comboFrames, 1);
+    }
 
     const name = `${w.idx + 1}. ${w.def.name}`, nw = FONT.measure(name) + 10;
     this.pill(VIEW_W - nw - 4, 4, nw, 15);
@@ -554,19 +599,88 @@
       const x = (i * 53 + Math.sin(this.t * 0.02 + i) * 10) % VIEW_W, y = ((this.t * (0.5 + (i % 5) * 0.14) + i * 41) % (VIEW_H + 20)) - 10;
       drawSpr(ctx, SPR.drop[(i + (this.t >> 3)) % 4], x, y, false, i % 3 ? 0.5 : 1);
     }
-    FONT.draw(ctx, 'LEVEL CLEAR!', VIEW_W / 2, 22 + Math.sin(this.t * 0.08) * 2, '#7cff4f', { align: 'center', scale: 3, shadow: '#0d3b0e' });
-    FONT.draw(ctx, w.def.name, VIEW_W / 2, 52, '#ffffff', { align: 'center', shadow: '#000' });
-    this.panel(92, 66, 200, w.drops === w.dropsTotal ? 32 : 20);
-    drawSpr(ctx, SPR.drop[(this.t >> 3) % 4], 104, 70);
-    FONT.draw(ctx, `WATER DROPS: ${w.drops} / ${w.dropsTotal}`, 118, 73, '#d4f2ff', { shadow: '#061040' });
-    if (w.drops === w.dropsTotal) FONT.draw(ctx, 'PERFECT COLLECTION!', VIEW_W / 2, 86, '#ffe680', { align: 'center', shadow: '#061040' });
-    this.panel(30, 106, VIEW_W - 60, 44);
-    FONT.wrap(w.def.tip.toUpperCase(), 52).forEach((l, i) => FONT.draw(ctx, l, 40, 113 + i * 10, '#9cf07c', { shadow: '#061040' }));
-    const hop = Math.abs(Math.sin(this.t * 0.12)) * 8;
-    ctx.fillStyle = 'rgba(0,0,10,0.4)'; ctx.fillRect(VIEW_W / 2 - 14, 205, 28, 2);
-    drawSpr(ctx, hop > 2 ? SPR.pichon_happy : SPR.pichon_idle[0], VIEW_W / 2 - 25, 154 - hop, Math.floor(this.t / 40) % 2 === 0, 2);
-    if (this.clearT > 60 && Math.floor(this.t / 25) % 2) FONT.draw(ctx, 'PRESS Z', VIEW_W - 12, 200, '#ffffff', { align: 'right', shadow: '#000' });
+    const ty = this.tally, T = this.clearT;
+    FONT.draw(ctx, 'LEVEL CLEAR!', VIEW_W / 2, 8 + Math.sin(this.t * 0.08) * 1.5, '#7cff4f', { align: 'center', scale: 2, shadow: '#0d3b0e' });
+    FONT.draw(ctx, w.def.name, VIEW_W / 2, 29, '#ffffff', { align: 'center', shadow: '#000' });
+    // tally: one line appears every few frames, then the total counts up
+    const n = ty.lines.length, lx = 22, lw = 214, top = 42, step = 12, shown = Math.min(n, Math.floor((T - 20) / 10));
+    this.panel(lx, top, lw, n * step + 32);
+    ty.lines.forEach((l, i) => {
+      if (i >= shown) return;
+      FONT.draw(ctx, l[0], lx + 10, top + 7 + i * step, i ? '#b5ecfc' : '#ffffff', { shadow: '#061040' });
+      FONT.draw(ctx, (i ? '+' : '') + l[1], lx + lw - 10, top + 7 + i * step, l[1] ? '#ffe680' : '#6a78b0', { align: 'right', shadow: '#061040' });
+    });
+    const doneAt = 20 + n * 10, k = Math.max(0, Math.min(1, (T - doneAt) / 40));
+    ctx.fillStyle = 'rgba(95,212,255,0.5)'; ctx.fillRect(lx + 8, top + n * step + 6, lw - 16, 1);
+    if (T > doneAt) {
+      FONT.draw(ctx, 'TOTAL', lx + 10, top + n * step + 13, '#ffffff', { scale: 2, shadow: '#061040' });
+      FONT.draw(ctx, String(Math.round(ty.total * k)), lx + lw - 10, top + n * step + 13, '#ffe680', { align: 'right', scale: 2, shadow: '#3a1a00' });
+    }
+    // rank card
+    const rx = 246, rw = 116, final = T > doneAt + 45;
+    this.panel(rx, top, rw, 104);
+    FONT.draw(ctx, 'RANK', rx + rw / 2, top + 6, '#b5ecfc', { align: 'center', shadow: '#061040' });
+    if (final) {
+      const pop = Math.max(0, 1 - (T - doneAt - 45) / 10), RC = { S: '#ffe060', A: '#7cff4f', B: '#5fd4ff', C: '#ffffff', D: '#9aa6c8' };
+      FONT.draw(ctx, ty.rank, rx + rw / 2 + 1, top + 17 - pop * 4, RC[ty.rank], { align: 'center', scale: 5 + Math.round(pop * 2), shadow: '#061040' });
+      FONT.draw(ctx, ty.isBest ? 'NEW BEST!' : `BEST ${ty.prev}`, rx + rw / 2, top + 64, ty.isBest && Math.floor(this.t / 10) % 2 ? '#ffe680' : '#ffffff', { align: 'center', shadow: '#061040' });
+      for (let i = 0; i < ty.crystalTotal; i++) drawSpr(ctx, i < ty.crystals ? SPR.crystalIcon : SPR.crystalEmpty, rx + rw / 2 - ty.crystalTotal * 5 + i * 10 + 1.5, top + 76);
+      drawSpr(ctx, SPR.drop[0], rx + 22, top + 88, false, 0.75); FONT.draw(ctx, `${w.drops}/${w.dropsTotal}`, rx + 31, top + 90, w.drops === w.dropsTotal ? '#ffe680' : '#d4f2ff', { shadow: '#061040' });
+      if (ty.combo > 1) FONT.draw(ctx, `X${Math.min(SCORE.comboMax, ty.combo)}`, rx + rw - 14, top + 90, '#ffb040', { align: 'right', shadow: '#061040' });
+    } else FONT.draw(ctx, '?', rx + rw / 2 + 1, top + 17, '#3a4a90', { align: 'center', scale: 5 });
+    // leaderboard line + eco tip
+    if (final) {
+      const msg = ty.place >= 0 ? `TOTAL SCORE ${ty.grand}  -  NO. ${ty.place + 1} ON THE LEADERBOARD` : `TOTAL SCORE ${ty.grand}`;
+      FONT.draw(ctx, msg, VIEW_W / 2, 152, '#ffe680', { align: 'center', shadow: '#000' });
+    }
+    this.panel(22, 164, VIEW_W - 44, 34);
+    FONT.wrap(w.def.tip.toUpperCase(), 54).slice(0, 3).forEach((l, i) => FONT.draw(ctx, l, 30, 168 + i * 10, '#9cf07c', { shadow: '#061040' }));
+    if (this.state === 'clear' && T > 90 && Math.floor(this.t / 25) % 2) FONT.draw(ctx, 'PRESS Z', VIEW_W - 8, 203, '#ffffff', { align: 'right', shadow: '#000' });
     ctx.globalAlpha = 1;
+  };
+
+  // arcade-style initials entry
+  G.drawName = function () {
+    const ctx = this.ctx, e = this.nameEdit;
+    if (!e) return;
+    ctx.fillStyle = 'rgba(2,4,20,0.72)'; ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+    this.panel(72, 50, 240, 116);
+    FONT.draw(ctx, 'YOU MADE THE LEADERBOARD!', VIEW_W / 2, 60, '#ffe680', { align: 'center', shadow: '#061040' });
+    FONT.draw(ctx, 'ENTER YOUR INITIALS', VIEW_W / 2, 73, '#ffffff', { align: 'center', shadow: '#061040' });
+    for (let i = 0; i < 3; i++) {
+      const x = VIEW_W / 2 - 54 + i * 40, act = i === e.pos, ch = NAME_CHARS[e.chars[i]];
+      ctx.fillStyle = act ? 'rgba(95,212,255,0.28)' : 'rgba(6,10,40,0.6)'; ctx.fillRect(x, 92, 28, 36);
+      ctx.fillStyle = act ? '#ffe680' : '#5fd4ff'; ctx.fillRect(x, 127, 28, 1.5);
+      FONT.draw(ctx, ch === ' ' ? '_' : ch, x + 15, 98, act ? '#ffe680' : '#ffffff', { align: 'center', scale: 3, shadow: '#061040' });
+      if (act) {
+        const o = Math.round(Math.sin(this.t * 0.2));
+        ctx.fillStyle = '#ffe680';
+        for (let k = 0; k < 4; k++) { ctx.fillRect(x + 14 - k, 86 - o + k - 3, k * 2 + 1, 1); ctx.fillRect(x + 14 - k, 133 + o - k + 3, k * 2 + 1, 1); }
+      }
+    }
+    FONT.draw(ctx, 'UP/DOWN: LETTER   Z: OK   X: BACK', VIEW_W / 2, 150, '#b5ecfc', { align: 'center', shadow: '#061040' });
+  };
+
+  G.drawBoard = function () {
+    const ctx = this.ctx, b = this.board || [];
+    this.drawScene(0.6);
+    FONT.draw(ctx, 'LEADERBOARD', VIEW_W / 2, 8, '#ffe680', { align: 'center', scale: 2, shadow: '#5a2a00' });
+    this.panel(72, 32, 240, 158);
+    FONT.draw(ctx, 'NO.  NAME    SCORE    LEVELS', 84, 39, '#5fd4ff', { shadow: '#061040' });
+    ctx.fillStyle = 'rgba(95,212,255,0.4)'; ctx.fillRect(80, 50, 224, 1);
+    for (let i = 0; i < BOARD_SIZE; i++) {
+      const e = b[i], y = 55 + i * 13, me = e && e.id === this.save.runId;
+      if (me) { ctx.fillStyle = 'rgba(255,224,96,0.2)'; ctx.fillRect(78, y - 2, 228, 12); }
+      const col = !e ? '#3a4a90' : me ? (Math.floor(this.t / 12) % 2 ? '#ffe680' : '#ffffff') : i < 3 ? '#ffffff' : '#b5ecfc';
+      FONT.draw(ctx, String(i + 1).padStart(2, ' ') + '.', 84, y, i === 0 ? '#ffe060' : col, { shadow: '#061040' });
+      FONT.draw(ctx, e ? e.name : '---', 114, y, col, { shadow: '#061040' });
+      FONT.draw(ctx, e ? String(e.score) : '-', 210, y, col, { align: 'right', shadow: '#061040' });
+      if (e) FONT.draw(ctx, e.npc ? 'RESIDENT' : `${e.cleared}/${LEVELS.length}`, 232, y, e.npc ? '#6a78b0' : col, { shadow: '#061040' });
+      if (i === 0 && e) drawSpr(ctx, SPR.crystalIcon, 74, y - 1);
+    }
+    const mine = totalScore(this.save);
+    FONT.draw(ctx, mine ? `YOUR TOTAL: ${mine}   BEST SCORES ON THIS DEVICE` : 'BEST SCORES ON THIS DEVICE', VIEW_W / 2, 195, '#ffffff', { align: 'center', shadow: '#000' });
+    if (this.boardT > 20 && Math.floor(this.t / 25) % 2) FONT.draw(ctx, 'PRESS Z', VIEW_W - 8, 205, '#ffffff', { align: 'right', shadow: '#000' });
   };
 
   // ---------------------------------------------------------------- title
@@ -693,12 +807,20 @@
         const words = LEVELS[i].name.toUpperCase().split(' ').filter(x => x !== 'THE');
         words.slice(0, 2).forEach((wd, k) => FONT.draw(ctx, wd.slice(0, 10), cx + bw / 2, cy + 26 + k * 9, '#ffffff', { align: 'center', shadow: '#061040' }));
         const best = this.save.best[i];
-        if (best !== undefined) { drawSpr(ctx, SPR.drop[0], cx + bw / 2 - 12, cy + 43, false, 0.75); FONT.draw(ctx, String(best), cx + bw / 2 - 3, cy + 44, '#b5ecfc', { shadow: '#061040' }); }
+        if (best !== undefined) { drawSpr(ctx, SPR.drop[0], cx + 5, cy + 43, false, 0.75); FONT.draw(ctx, String(best), cx + 14, cy + 44, '#b5ecfc', { shadow: '#061040' }); }
+        const hi = this.save.hi[i], got = (this.save.cry[i] || []).length;
+        if (hi) {
+          FONT.draw(ctx, hi.rank, cx + bw - 7, cy + 7, { S: '#ffe060', A: '#7cff4f', B: '#5fd4ff', C: '#ffffff', D: '#9aa6c8' }[hi.rank], { align: 'right', shadow: '#061040' });
+          for (let k = 0; k < 3; k++) drawSpr(ctx, k < got ? SPR.crystalIcon : SPR.crystalEmpty, cx + bw - 28 + k * 8, cy + 42.5);
+        }
       }
     }
     const Lv = LEVELS[this.lsSel];
     FONT.wrap(Lv.intro.toUpperCase(), 58).forEach((l, i) => FONT.draw(ctx, l, VIEW_W / 2, 174 + i * 10, '#ffe680', { align: 'center', shadow: '#000' }));
-    FONT.draw(ctx, 'Z = PLAY    ESC = BACK', VIEW_W / 2, VIEW_H - 11, '#ffffff', { align: 'center', shadow: '#000' });
+    const sh = this.save.hi[this.lsSel];
+    FONT.draw(ctx, (sh ? `BEST ${sh.score}    ` : '') + 'Z = PLAY    ESC = BACK', VIEW_W / 2, VIEW_H - 11, '#ffffff', { align: 'center', shadow: '#000' });
+    const tot = totalScore(this.save);
+    if (tot) FONT.draw(ctx, `TOTAL ${tot}`, VIEW_W - 10, 14, '#ffe680', { align: 'right', shadow: '#000' });
   };
 
   // ---------------------------------------------------------------- story
@@ -793,11 +915,12 @@
     let total = 0, best = 0;
     LEVELS.forEach((Lv, i) => { best += this.save.best[i] || 0; total += buildLevelGrid(Lv).grid.flat().filter(c => c === 'o').length; });
     this.panel(82, 84, 220, 46);
+    FONT.draw(ctx, `FINAL SCORE: ${totalScore(this.save)}`, VIEW_W / 2, 134, '#ffe680', { align: 'center', shadow: '#000' });
     FONT.draw(ctx, `WATER DROPS COLLECTED: ${best} / ${total}`, VIEW_W / 2, 92, '#b5ecfc', { align: 'center', shadow: '#061040' });
     FONT.draw(ctx, `GERMS CLEANED: ${this.stats.kills}`, VIEW_W / 2, 104, '#b5ecfc', { align: 'center', shadow: '#061040' });
     FONT.draw(ctx, `SPLASHES (DEATHS): ${this.stats.deaths}`, VIEW_W / 2, 116, '#b5ecfc', { align: 'center', shadow: '#061040' });
-    FONT.draw(ctx, 'THANK YOU FOR PLAYING PICHONKUN!', VIEW_W / 2, 146, '#ffe680', { align: 'center', shadow: '#000' });
-    FONT.draw(ctx, 'KEEP YOUR FILTERS CLEAN AND YOUR AIR FRESH.', VIEW_W / 2, 158, '#ffffff', { align: 'center', shadow: '#000' });
+    FONT.draw(ctx, 'THANK YOU FOR PLAYING PICHONKUN!', VIEW_W / 2, 150, '#ffe680', { align: 'center', shadow: '#000' });
+    FONT.draw(ctx, 'KEEP YOUR FILTERS CLEAN AND YOUR AIR FRESH.', VIEW_W / 2, 162, '#ffffff', { align: 'center', shadow: '#000' });
     if (this.creditT > 120 && Math.floor(this.t / 25) % 2) FONT.draw(ctx, 'PRESS Z', VIEW_W / 2, 190, '#ffffff', { align: 'center', shadow: '#000' });
   };
 })();

@@ -12,7 +12,7 @@ vm.runInContext(src + '\nthis.LEVELS = LEVELS; this.buildLevelGrid = buildLevelG
 const { LEVELS, buildLevelGrid } = ctx;
 
 let errors = 0, warnings = 0;
-const SOLID = '#=i<>x';
+const SOLID = '#=i<>x%';
 const GROUNDED = 'fbdmSN?LCPEHu'; // things that must stand on something (viruses may drop)
 
 if (LEVELS.length !== 10) { console.error(`expected 10 levels, found ${LEVELS.length}`); errors++; }
@@ -38,6 +38,7 @@ LEVELS.forEach((L, li) => {
   if (count('D') && !L.levers) err('lever doors (D) without a lever puzzle');
   if (count('P') !== 1) err(`needs exactly one start (P), found ${count('P')}`);
   if (count('E') !== 1) err(`needs exactly one exit (E), found ${count('E')}`);
+  if (count('*') !== 3) err(`needs exactly 3 crystals (*), found ${count('*')}`);
   if (!!L.boss !== (count('B') === 1)) err('boss definition and B marker do not match');
   (L.riddles || []).forEach((r, i) => {
     if (!(r.ok >= 0 && r.ok < r.a.length)) err(`riddle ${i} has invalid answer index`);
@@ -51,6 +52,10 @@ LEVELS.forEach((L, li) => {
     const c = grid[y][x];
     const below = y + 1 < H ? grid[y + 1][x] : ' ';
     if (GROUNDED.includes(c) && !(SOLID.includes(below) || below === '-')) err(`'${c}' at ${x},${y} is floating`);
+    // a secret wall must be standable: something solid under the room, and a way in from open air
+    if (c === '%' || (c === '*' && [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => (grid[y + dy] || [])[x + dx] === '%'))) {
+      if (y + 1 >= H) err(`secret wall at ${x},${y} has no floor`);
+    }
     if (c === 'v' && !(SOLID.includes(below) || below === '-')) warn(`virus at ${x},${y} will drop to the ground`);
   }
   console.log(`ok      ${tag}: ${W}x${H} tiles, ${count('o')} drops`);

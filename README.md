@@ -37,6 +37,8 @@ air clean. His journey goes through meadows and smoggy streets, into the air con
 - 🧩 **14 easy riddles** about water, filters, fans and energy saving, plus **3 lever puzzles**. Wrong answers get a hint.
 - 💬 **Story and characters**: Leafa, Prof. Mesh, Frosty, Buzzby and Granny Cloud, with an 🌱 eco tip after every level
 - 🎵 **Chiptune music and sound effects**, made live with WebAudio
+- 🏆 **Score, ranks and a leaderboard**: combos for quick clean-ups, bonuses for speed and for taking no damage, an S–D rank per level and a local top-10 table to climb
+- 💎 **30 hidden air crystals** (three per level), some tucked behind **secret walls**
 - 💾 **Auto-save** at checkpoints and milestones, plus **Continue** and **Level Select**
 - 📱 Works with keyboard or touch controls
 
@@ -58,8 +60,12 @@ air clean. His journey goes through meadows and smoggy streets, into the air con
 | **Boss: Dust Baron** | **Boss: Mold Queen** |
 | ![Riddle](docs/screenshots/riddle.png) | ![Dialogue](docs/screenshots/dialog.png) |
 | **Air-Q riddle gates** | **Story and dialogue** |
-| ![Level clear](docs/screenshots/level-clear.png) | ![Ending](docs/screenshots/ending.png) |
-| **Level clear and eco tip** | **The ending** |
+| ![Level clear](docs/screenshots/level-clear.png) | ![Leaderboard](docs/screenshots/leaderboard.png) |
+| **Score tally and rank** | **Leaderboard** |
+| ![Secret room](docs/screenshots/secret-room.png) | ![Level select](docs/screenshots/level-select.png) |
+| **A secret room with an air crystal** | **Level select with ranks and crystals** |
+| ![Enter your initials](docs/screenshots/name-entry.png) | ![Ending](docs/screenshots/ending.png) |
+| **Enter your initials** | **The ending** |
 
 ## How to play
 
@@ -100,6 +106,28 @@ On phones and tablets, on-screen buttons appear automatically.
 | 9 | Smokestack Factory | Everything at once, the 3 R's puzzle |
 | 10 | Smogmaw's Sky | Cloud platforms · 👑 **Smogmaw** |
 
+### Scoring
+
+| What | Points |
+| --- | --- |
+| Water drop | 10 |
+| Cleaning an enemy | 100 per hit point, +50 for a stomp |
+| **Combo**: clean another enemy within 2.5 seconds | ×2, ×3 … up to ×5 |
+| Riddle or lever puzzle | 500 on the first try, 250 on the second, 100 after that |
+| Boss | 100 per hit, 3000 for the win |
+| 💎 Air crystal (3 per level) | 500 each |
+| Finding a secret room | 250 |
+| Picking up a heart at full health | 200 |
+| **End of level** | 1000 for the clear, 20 per second under the par time, 1500 for no damage (or 500 for no deaths), 1000 for all drops, 1500 for all three crystals |
+
+Each level gives a rank from **D** to **S**. Your best score per level is kept, so replaying a level from
+**Level Select** can only raise your total. The total goes on the **Leaderboard** under your three initials,
+next to the residents of Breezeville.
+
+Secret walls look like ordinary ground but Pichonkun can walk through them. Watch for a faint twinkle.
+
+The leaderboard is local: it lists the best scores made in this browser on this device.
+
 ### Saving
 
 The game saves to your browser's `localStorage` at these points:
@@ -108,6 +136,7 @@ The game saves to your browser's `localStorage` at these points:
 - solving a riddle or puzzle
 - getting the Vapor Jump
 - defeating a boss
+- finding an air crystal
 - clearing a level
 
 A **SAVED** badge appears in the corner each time.

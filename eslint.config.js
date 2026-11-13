@@ -9,6 +9,7 @@ const gameGlobals = Object.fromEntries([
   'World', 'Player', 'ENEMY_DEFS', 'BOSS_INFO', 'makeEnemy', 'updateEnemy', 'makeBoss', 'updateBoss', 'overlap', 'walkBody',
   'GRAV', 'MAX_FALL', 'RUN_SPEED', 'JUMP_V', 'DJUMP_V', 'SPRING_V',
   'VIEW_W', 'VIEW_H', 'RES', 'SAVE_KEY', 'GAME_VERSION', 'CONFIRM', 'Input', 'Game', 'whiteOf', 'defaultSave', 'loadSave', 'writeSave',
+  'SCORE', 'rankFor', 'BOARD_KEY', 'BOARD_SIZE', 'BOARD_SEED', 'NAME_CHARS', 'loadBoard', 'writeBoard', 'boardSubmit', 'totalScore', 'newRun', 'newRunId',
 ].map(n => [n, 'writable']));
 
 module.exports = [

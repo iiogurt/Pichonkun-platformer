@@ -37,9 +37,21 @@ const SHOTS = {
     T.step(20, () => { GAME.dialog = null; });
     T.step(125, i => { GAME.dialog = null; w.player.inv = 0; w.player.hp = 3; if (i % 20 === 0) Input.pressed.add('shoot'); });
   },
-  'level-clear': () => { T.play(1); T.bot(200, { god: true }); GAME.world.drops = GAME.world.dropsTotal; GAME.levelComplete(); T.step(100); },
+  'level-clear': () => { T.play(1); T.bot(200, { god: true }); GAME.world.drops = GAME.world.dropsTotal; GAME.run.crystals = [0, 2]; GAME.run.score = 3180; GAME.run.bestCombo = 3; GAME.save.name = 'PIC'; GAME.levelComplete(); T.step(220); },
+  'name-entry': () => { GAME.askName(() => {}); GAME.nameEdit.chars = [15, 8, 2]; GAME.nameEdit.pos = 1; T.step(5); },
   'ending': () => { GAME.state = 'ending'; GAME.say(STORY_ENDING.slice(3)); T.step(160); },
-  'level-select': () => { GAME.save.unlocked = 7; GAME.save.best = { 0: 17, 1: 20, 2: 15, 3: 22, 4: 12, 5: 18 }; GAME.state = 'levelselect'; GAME.lsSel = 3; },
+  'secret-room': () => {
+    T.play(3); const w = GAME.world, p = w.player; w.enemies = [];
+    p.x = 47 * 16 + 3; p.y = 12 * 16 - 19; w.snapCamera();
+    T.step(34, () => { Input.down.add('left'); }); Input.down.clear(); T.step(20);
+  },
+  'level-select': () => {
+    const R = ['S', 'A', 'A', 'B', 'S', 'C'], C = [3, 2, 3, 1, 3, 0];
+    GAME.save.unlocked = 7; GAME.save.best = { 0: 17, 1: 20, 2: 15, 3: 22, 4: 12, 5: 18 };
+    R.forEach((r, i) => { GAME.save.hi[i] = { score: 9400 - i * 730, rank: r, time: 90 }; GAME.save.cry[i] = [0, 1, 2].slice(0, C[i]); });
+    GAME.state = 'levelselect'; GAME.lsSel = 3;
+  },
+  'leaderboard': () => { GAME.save.name = 'PIC'; boardSubmit(GAME.save); GAME.openBoard(); T.step(30); },
 };
 
 (async () => {
