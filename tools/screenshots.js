@@ -40,6 +40,12 @@ const SHOTS = {
   'level-clear': () => { T.play(1); T.bot(200, { god: true }); GAME.world.drops = GAME.world.dropsTotal; GAME.run.crystals = [0, 2]; GAME.run.score = 3180; GAME.run.bestCombo = 3; GAME.save.name = 'PIC'; GAME.levelComplete(); T.step(220); },
   'name-entry': () => { GAME.askName(() => {}); GAME.nameEdit.text = 'PICHON'; T.step(5); Input.setTyping(false); },
   'ending': () => { GAME.state = 'ending'; GAME.say(STORY_ENDING.slice(3)); T.step(160); },
+  'wingman': () => {
+    GAME.save.wing = true; T.play(1); T.bot(250, { god: true });
+    const w = GAME.world, p = w.player; const e = w.enemies.find(x => !x.dead) || w.enemies[0];
+    if (e) { e.x = p.x + 80; e.y = p.y - 20; e.ox = e.x; e.oy = e.y; }
+    w.wing.cool = 0; T.step(9);
+  },
   'secret-room': () => {
     T.play(3); const w = GAME.world, p = w.player; w.enemies = [];
     p.x = 47 * 16 + 3; p.y = 12 * 16 - 19; w.snapCamera();

@@ -281,6 +281,38 @@ test('name can be changed from Options and the leaderboard row follows', async p
   assert.deepStrictEqual(r, { state: 'title', name: 'NEWNAME9', row: 'NEWNAME9', keysBackToNormal: true });
 });
 
+test('wingman follows Pichonkun, shoots enemies in range and can be switched off', async page => {
+  const r = await page.evaluate(() => {
+    localStorage.clear(); GAME.save = defaultSave(); Input.down.clear(); GAME.dialog = null;
+    T.play(0);
+    const w = GAME.world, p = w.player, a = w.wing;
+    const onByDefault = !!a;
+    w.enemies.forEach(e => { e.x += 5000; });                 // nobody near: it must not shoot
+    T.step(120, () => { GAME.dialog = null; Input.down.add('right'); });
+    Input.down.clear();
+    const quiet = w.shots.length === 0, dist = Math.hypot(a.x - p.x, a.y - p.y);
+    const e = w.enemies[0]; e.x = p.x + 70; e.y = p.y - 10; e.ox = e.x; e.oy = e.y;
+    const hp0 = e.hp, kills0 = GAME.stats.kills;
+    let fired = false;
+    T.step(200, () => { GAME.dialog = null; if (w.shots.length) fired = true; });
+    const hit = e.hp < hp0 || GAME.stats.kills > kills0;
+    // through a wall: the angel is never blocked
+    a.x = p.x; a.y = p.y + 40; T.step(60, () => { GAME.dialog = null; });
+    const free = Math.hypot(a.x - p.x, a.y - p.y) < 40;
+    GAME.state = 'pause'; GAME.pauseSel = GAME.pauseItems().findIndex(i => i.startsWith('WINGMAN'));
+    Input.pressed.add('confirm'); T.step(1); GAME.state = 'play'; GAME.render();
+    const off = w.wing === null && GAME.save.wing === false;
+    T.play(0); const staysOff = GAME.world.wing === null;
+    return { onByDefault, quiet, dist: Math.round(dist), fired, hit, free, off, staysOff };
+  });
+  assert.ok(r.onByDefault, 'wingman should be on by default');
+  assert.ok(r.quiet, 'wingman shot with no enemy near');
+  assert.ok(r.dist < 60, `wingman fell behind (${r.dist}px)`);
+  assert.ok(r.fired && r.hit, 'wingman did not hit an enemy in range');
+  assert.ok(r.free, 'wingman got stuck');
+  assert.ok(r.off && r.staysOff, 'wingman did not switch off');
+});
+
 test('audio engine runs every track and sound effect', async page => {
   await page.evaluate(() => {
     AUDIO.init();

@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-11-13
+
+### Added
+
+- **Angel, the guardian wingman**: a winged droplet with a halo that flies beside Pichonkun and
+  splashes the nearest enemy or boss in range by itself. It flies through walls, so it never gets
+  stuck on obstacles. On by default; switch it off under Options or in the pause menu.
+- Angel is introduced in the opening story.
+
+### Changed
+
+- Hints for the selected option on the Options screen moved to the bottom left.
+
 ## [1.3.2] - 2026-11-13
 
 ### Fixed
@@ -153,7 +166,8 @@ First public release. Play it at https://iiogurt.github.io/Pichonkun-platformer/
 - Tooling: ESLint, a level-data validator, a headless Chrome smoke test and a screenshot generator.
 - GitHub Actions for CI, GitHub Pages deployment and tagged releases.
 
-[Unreleased]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.3.2...HEAD
+[Unreleased]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.3.2...v1.4.0
 [1.3.2]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.3.1...v1.3.2
 [1.3.1]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.2.0...v1.3.0

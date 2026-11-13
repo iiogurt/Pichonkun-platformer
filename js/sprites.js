@@ -103,7 +103,7 @@ const OUTL = { navy: [13, 27, 94], dark: [16, 12, 26] };
     // head: a round droplet with a small soft tip (smooth union), in squash space
     const hshape = (X, Y) => S.sunion(S.circle(X, Y, 0, 0, R), S.cone(X, Y, 0, -7.5, 7, lean, -tipLen, 1.1), 3.5);
     const hsdf = (x, y) => hshape((x - cx) / (sxs * WIDE), (y - hy) / sys) * Math.min(sxs, sys);
-    const head = part(W, H, hsdf, HEAD, (x, y, d) => {
+    const head = part(W, H, hsdf, o.ramp || HEAD, (x, y, d) => {
       const X = (x - cx) / (sxs * WIDE), Y = (y - hy) / sys;
       // ---- face patch (lower right); features are stamped on afterwards
       const fd = S.ellipse(X, Y, 5.8, 4.8, 10.4, 8.4);
@@ -144,7 +144,25 @@ const OUTL = { navy: [13, 27, 94], dark: [16, 12, 26] };
     if (o.mouth === 'open') stamp(['.###.', '#ppp#', '#ppp#', '.###.'], fx + 5, fy + 4);
     else stamp(['#..#..#', '.##.##.'], fx + 4, fy + 4);
 
-    return mkSpr(stack(mkArm(-1, arms[1]), mkLeg(-1, legs[1]), mkLeg(1, legs[0]), body, head, mkArm(1, arms[0])), 1.5);
+    // the guardian angel wears feathered wings (behind the body) and a halo over the tip
+    const layers = [mkArm(-1, arms[1]), mkLeg(-1, legs[1]), mkLeg(1, legs[0]), body, head, mkArm(1, arms[0])];
+    if (o.wings !== undefined) {
+      const lift = [-4.5, -1.5, 3, -1.5][o.wings];
+      const wing = (side, k) => {
+        const ax = cx - 0.5 + side * 4, ay = by0 - 3;
+        return part(W, H, (x, y) => Math.min(
+          S.cone(x, y, ax, ay, 3 * k, ax + side * 16 * k, ay - 6 + lift, 1.9 * k),
+          S.cone(x, y, ax, ay + 1.5, 2.8 * k, ax + side * 14 * k, ay + 0.5 + lift * 0.6, 1.7 * k),
+          S.cone(x, y, ax, ay + 3, 2.5 * k, ax + side * 10.5 * k, ay + 5.5 + lift * 0.3, 1.5 * k)), RAMPS.white,
+        (x, y) => clamp(1 - Math.abs(x - ax) * 0.028 - Math.max(0, y - ay) * 0.05), '#3a5aa8', 0);
+      };
+      layers.unshift(wing(-1, 1), wing(1, 0.85));
+    }
+    if (o.halo) {
+      const hx = cx + lean, hyy = hy - tipLen * sys - 3.2;
+      layers.push(part(W, H, (x, y) => Math.abs(S.ellipse(x, y, hx, hyy, 7, 2.4)) - 0.75, RAMPS.gold, (x, y) => (y < hyy ? 0.95 : 0.7), '#8a4a00', 0));
+    }
+    return mkSpr(stack(...layers), 1.5);
   }
 
   function buildPichon() {
@@ -715,8 +733,14 @@ const OUTL = { navy: [13, 27, 94], dark: [16, 12, 26] };
     }
     Object.assign(SPR, SKIN_CACHE[id]);
   };
+  const ANGEL = GFX.ramp('#44529c', '#6878c4', '#8c9ee4', '#aebef4', '#c8d6fc', '#e0e8ff', '#f6f8ff');
+  function buildAngel() {
+    SPR.angel = [0, 1, 2, 3].map(f => pichon({ ramp: ANGEL, wings: f, halo: true, legs: [[-1.6, 1.6], [-2.6, 1]], arms: [0.5, -0.5], sq: [-0.08, 0, 0.08, 0][f], tip: 15.5 }));
+    SPR.angel_shoot = pichon({ ramp: ANGEL, wings: 1, halo: true, legs: [[-1.6, 1.6], [-2.6, 1]], arms: [1.55, -0.5], tip: 15.5 });
+  }
   window.buildSprites = function buildSprites() {
     window.setSkin('blue');
+    buildAngel();
     SPR.pollen = [0, 1, 2, 3].map(f => pollen(f));
     SPR.virus = [0, 1, 2, 3].map(f => virus(f));
     SPR.bacteria = [0, 1, 2, 3].map(f => bacteria(f));

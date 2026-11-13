@@ -3,7 +3,7 @@
 const VIEW_W = 384, VIEW_H = 216, RES = 2;
 const SAVE_KEY = 'pichonkun_save_v1';
 const BOARD_KEY = 'pichonkun_scores_v1';
-const GAME_VERSION = '1.3.2';
+const GAME_VERSION = '1.4.0';
 
 // ================================================================== INPUT
 const Input = (() => {
@@ -55,7 +55,7 @@ const newRunId = () => Date.now().toString(36) + Math.floor(Math.random() * 1e6)
 // Score state of the level being played. Kept across deaths, stored with every auto-save.
 const newRun = () => ({ score: 0, time: 0, hits: 0, deaths: 0, kills: [], crystals: [], secrets: [], miss: {}, leverMiss: 0, bossDmg: 0, boss: false, bossHurt: 0, bestCombo: 0 });
 function defaultSave() {
-  return { unlocked: 1, level: 0, cp: null, vapor: false, best: {}, hi: {}, cry: {}, name: '', runId: newRunId(), hard: false, stats: { kills: 0, deaths: 0, hits: 0 }, started: false, finished: false, music: true, sfx: true, gfx: 'high', gfxAuto: true };
+  return { unlocked: 1, level: 0, cp: null, vapor: false, best: {}, hi: {}, cry: {}, name: '', runId: newRunId(), hard: false, wing: true, stats: { kills: 0, deaths: 0, hits: 0 }, started: false, finished: false, music: true, sfx: true, gfx: 'high', gfxAuto: true };
 }
 function loadSave() {
   try {
@@ -400,7 +400,7 @@ class Game {
     if (this.sub === 'options') {
       const sk = SKINS.find(x => x[0] === this.meta.skin) || SKINS[0];
       return ['MUSIC: ' + (this.save.music ? 'ON' : 'OFF'), 'SOUND FX: ' + (this.save.sfx ? 'ON' : 'OFF'),
-        'GRAPHICS: ' + (this.save.gfx === 'low' ? 'FAST' : 'FANCY'), `SKIN: ${sk[1]} (${this.meta.skins.length}/${SKINS.length})`, `NAME: ${this.save.name || '-'}`, 'BACK'];
+        'GRAPHICS: ' + (this.save.gfx === 'low' ? 'FAST' : 'FANCY'), `SKIN: ${sk[1]} (${this.meta.skins.length}/${SKINS.length})`, `NAME: ${this.save.name || '-'}`, 'WINGMAN: ' + (this.save.wing !== false ? 'ON' : 'OFF'), 'BACK'];
     }
     if (this.sub === 'mode') return ['NORMAL', 'HARD', 'BACK'];
     const items = [];
@@ -413,7 +413,7 @@ class Game {
   // Wipe the adventure (not the settings, leaderboard or achievements) and start over.
   newGame(hard) {
     const k = this.save;
-    this.save = Object.assign(defaultSave(), { music: k.music, sfx: k.sfx, gfx: k.gfx, gfxAuto: k.gfxAuto, lastName: k.lastName, hard: !!hard });
+    this.save = Object.assign(defaultSave(), { music: k.music, sfx: k.sfx, gfx: k.gfx, gfxAuto: k.gfxAuto, lastName: k.lastName, wing: k.wing !== false, hard: !!hard });
     this.stats = this.save.stats; writeSave(this.save);
     this.sub = null;
     this.beginStory();
@@ -450,6 +450,7 @@ class Game {
       else if (it.startsWith('MUSIC')) { this.save.music = !this.save.music; AUDIO.setMusic(this.save.music); writeSave(this.save); }
       else if (it.startsWith('SOUND')) { this.save.sfx = !this.save.sfx; AUDIO.setSfx(this.save.sfx); writeSave(this.save); AUDIO.sfx('confirm'); }
       else if (it.startsWith('GRAPHICS')) { this.save.gfx = this.save.gfx === 'low' ? 'high' : 'low'; this.save.gfxAuto = false; writeSave(this.save); }
+      else if (it.startsWith('WINGMAN')) { this.save.wing = this.save.wing === false; writeSave(this.save); }
       else if (it.startsWith('NAME')) { this.tally = null; this.askName(() => { boardSubmit(this.save); this.state = 'title'; }); }
       else if (it.startsWith('SKIN')) {
         const have = SKINS.filter(x => this.meta.skins.includes(x[0]));
@@ -512,7 +513,7 @@ class Game {
     }
   }
 
-  pauseItems() { return ['RESUME', 'RESTART FROM CHECKPOINT', 'MUSIC: ' + (this.save.music ? 'ON' : 'OFF'), 'SOUND FX: ' + (this.save.sfx ? 'ON' : 'OFF'), 'GRAPHICS: ' + (this.save.gfx === 'low' ? 'FAST' : 'FANCY'), 'QUIT TO TITLE']; }
+  pauseItems() { return ['RESUME', 'RESTART FROM CHECKPOINT', 'WINGMAN: ' + (this.save.wing !== false ? 'ON' : 'OFF'), 'MUSIC: ' + (this.save.music ? 'ON' : 'OFF'), 'SOUND FX: ' + (this.save.sfx ? 'ON' : 'OFF'), 'GRAPHICS: ' + (this.save.gfx === 'low' ? 'FAST' : 'FANCY'), 'QUIT TO TITLE']; }
   updatePause() {
     const items = this.pauseItems();
     if (Input.hit('up')) { this.pauseSel = (this.pauseSel + items.length - 1) % items.length; AUDIO.sfx('select'); }
@@ -523,6 +524,7 @@ class Game {
       const it = items[this.pauseSel];
       if (it === 'RESUME') this.state = 'play';
       else if (it.startsWith('RESTART')) { this.respawn(); this.state = 'play'; }
+      else if (it.startsWith('WINGMAN')) { this.save.wing = this.save.wing === false; writeSave(this.save); this.world.setWingman(this.save.wing); }
       else if (it.startsWith('MUSIC')) { this.save.music = !this.save.music; AUDIO.setMusic(this.save.music); writeSave(this.save); }
       else if (it.startsWith('SOUND')) { this.save.sfx = !this.save.sfx; AUDIO.setSfx(this.save.sfx); writeSave(this.save); }
       else if (it.startsWith('GRAPHICS')) { this.save.gfx = this.save.gfx === 'low' ? 'high' : 'low'; this.save.gfxAuto = false; writeSave(this.save); }

@@ -199,6 +199,15 @@
 
     if (w.boss && !w.boss.dead) this.drawBoss(w.boss, w, L);
 
+    // guardian angel
+    if (w.wing) {
+      const a = w.wing, spr = a.shootT > 0 ? SPR.angel_shoot : SPR.angel[(a.t >> 3) % 4];
+      L(a.x + 5, a.y + 6, 46, '#fff0b8', 0.8, 0);
+      if (hi) { ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.4; ctx.drawImage(glow('#fff0b8', 20, 0.5), a.x + 5 - 20, a.y + 2 - 20); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; }
+      const s = 0.8;
+      ctx.drawImage(a.face < 0 ? spr.flip : spr.img, Math.round((a.x + 5 - spr.w * s / 2) * 2) / 2, Math.round((a.y + 14 - (spr.h - spr.oy) * s) * 2) / 2, spr.w * s, spr.h * s);
+    }
+
     // player
     if (!p.dead) {
       L(p.x + 5, p.y + 6, 84, '#d4ecff', 1, 0);
@@ -815,7 +824,12 @@
     }
     if (this.sub === 'options') {
       const sk = SKINS.find(s => !this.meta.skins.includes(s[0]));
-      if (sk) { this.panel(mx - 12, my + mh - 2, 148, 34, 0.9); FONT.wrap(`NEXT SKIN: ${sk[1]} - ${sk[2]}`, 22).forEach((l, i) => FONT.draw(ctx, l, mx - 5, my + mh + 3 + i * 9, '#b5ecfc', { shadow: '#061040' })); }
+      // hint for the selected option, bottom left (the menu fills the right side)
+      const it = items[this.menu];
+      const tip = it.startsWith('WINGMAN') ? 'A GUARDIAN ANGEL FLIES WITH YOU AND SPLASHES NEARBY ENEMIES.'
+        : it.startsWith('SKIN') && sk ? `NEXT SKIN: ${sk[1]} - ${sk[2]}`
+          : it.startsWith('NAME') ? 'YOUR NAME ON THE LEADERBOARD.' : '';
+      if (tip) { this.panel(8, 160, 196, 34, 0.9); FONT.wrap(tip, 30).forEach((l, i) => FONT.draw(ctx, l, 16, 166 + i * 9, '#b5ecfc', { shadow: '#061040' })); }
     }
     if (this.confirmErase) {
       ctx.fillStyle = 'rgba(2,4,20,0.6)'; ctx.fillRect(0, 0, VIEW_W, VIEW_H);

@@ -32,6 +32,9 @@ const SCORE = {
 };
 const rankFor = (score, par) => SCORE.ranks.find(r => score >= par * r[1])[0];
 
+// The guardian angel shoots slower than Pichonkun: a helper, not a replacement.
+const WINGMAN = { range: 112, cooldown: 55, speed: 4.6 };
+
 class World {
   constructor(game, levelIdx, checkpoint) {
     this.game = game;
@@ -83,6 +86,7 @@ class World {
     }
     this.parScore = this.calcParScore();
     this.player.lastSafe = { x: this.player.x, y: this.player.y };
+    this.setWingman(game.save.wing !== false);
     this.cam = { x: 0, y: 0 };
     this.snapCamera();
   }
@@ -173,6 +177,40 @@ class World {
     return n + Math.round(this.parTime() * 0.35) * S.timePerSec;
   }
   parTime() { return this.W + (this.boss ? 60 : 0); }
+
+  // ------------------------------------------------------------- wingman
+  // The guardian angel: flies beside Pichonkun (through walls, so it never gets stuck)
+  // and splashes nearby enemies on its own.
+  setWingman(on) {
+    const p = this.player;
+    this.wing = on ? { x: p.x - 14, y: p.y - 14, face: 1, t: 0, cool: 40, shootT: 0 } : null;
+  }
+  updateWingman() {
+    const a = this.wing, p = this.player;
+    if (!a) return;
+    a.t++;
+    const tx = p.x + p.w / 2 - p.face * 18 - 5, ty = p.y - 15 + Math.sin(a.t * 0.07) * 3;
+    a.x += (tx - a.x) * 0.07; a.y += (ty - a.y) * 0.07;
+    if (a.shootT > 0) a.shootT--;
+    if (a.cool > 0) a.cool--;
+    if (p.dead) return;
+    // nearest enemy (or the boss) in range
+    const cx = a.x + 5, cy = a.y + 6;
+    let best = null, bd = WINGMAN.range;
+    for (const e of this.enemies) {
+      if (e.dead) continue;
+      const d = Math.hypot(e.x + e.w / 2 - cx, e.y + e.h / 2 - cy);
+      if (d < bd) { bd = d; best = e; }
+    }
+    const b = this.boss;
+    if (!best && b && this.bossActive && !b.dead && Math.hypot(b.x + b.w / 2 - cx, b.y + b.h / 2 - cy) < WINGMAN.range * 1.3) best = b;
+    a.face = best ? (best.x + best.w / 2 >= cx ? 1 : -1) : (Math.abs(tx - a.x) > 6 ? Math.sign(tx - a.x) : p.face);
+    if (!best || a.cool > 0 || this.shots.length >= 6) return;
+    const dx = best.x + best.w / 2 - cx, dy = best.y + best.h / 2 - cy, d = Math.hypot(dx, dy) || 1;
+    this.shots.push({ x: cx - 3, y: cy - 3, w: 6, h: 6, vx: dx / d * WINGMAN.speed, vy: dy / d * WINGMAN.speed, life: Math.ceil(WINGMAN.range * 1.4 / WINGMAN.speed) });
+    a.cool = WINGMAN.cooldown; a.shootT = 12;
+    AUDIO.sfx('shoot');
+  }
 
   // ---------------------------------------------------------------- tiles
   tile(tx, ty) {
@@ -275,6 +313,7 @@ class World {
     if (this.comboT > 0 && --this.comboT === 0) this.combo = 0;
     this.ghost = true; this.player.update(input); this.ghost = false;
     this.checkSecrets();
+    this.updateWingman();
     // hard mode: enemies and bosses get an extra step every few frames, so they move and shoot faster
     const eN = this.hard && this.t % HARD.enemyTick === 0 ? 2 : 1, bN = this.hard && this.t % HARD.bossTick === 0 ? 2 : 1;
     for (const e of this.enemies) for (let k = 0; k < eN; k++) if (!e.dead && Math.abs(e.x - this.player.x) < VIEW_W * 1.2) updateEnemy(this, e);
