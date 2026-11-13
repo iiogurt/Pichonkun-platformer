@@ -55,7 +55,7 @@
       case 'play': this.drawWorld(); this.drawHUD(); if (this.riddle) this.drawRiddle(); break;
       case 'pause': this.drawWorld(); this.drawHUD(); this.drawPause(); break;
       case 'clear': this.drawWorld(); this.drawClear(); break;
-      case 'name': this.drawWorld(); this.drawClear(); this.drawName(); break;
+      case 'name': if (this.tally) { this.drawWorld(); this.drawClear(); } else this.drawScene(0.6); this.drawName(); break;
       case 'board': this.drawBoard(); break;
       case 'awards': this.drawAwards(); break;
       case 'ending': this.drawEnding(); break;
@@ -645,26 +645,24 @@
     ctx.globalAlpha = 1;
   };
 
-  // arcade-style initials entry
+  // leaderboard name entry (typed)
   G.drawName = function () {
     const ctx = this.ctx, e = this.nameEdit;
     if (!e) return;
     ctx.fillStyle = 'rgba(2,4,20,0.72)'; ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-    this.panel(72, 50, 240, 116);
-    FONT.draw(ctx, 'YOU MADE THE LEADERBOARD!', VIEW_W / 2, 60, '#ffe680', { align: 'center', shadow: '#061040' });
-    FONT.draw(ctx, 'ENTER YOUR INITIALS', VIEW_W / 2, 73, '#ffffff', { align: 'center', shadow: '#061040' });
-    for (let i = 0; i < 3; i++) {
-      const x = VIEW_W / 2 - 54 + i * 40, act = i === e.pos, ch = NAME_CHARS[e.chars[i]];
-      ctx.fillStyle = act ? 'rgba(95,212,255,0.28)' : 'rgba(6,10,40,0.6)'; ctx.fillRect(x, 92, 28, 36);
-      ctx.fillStyle = act ? '#ffe680' : '#5fd4ff'; ctx.fillRect(x, 127, 28, 1.5);
-      FONT.draw(ctx, ch === ' ' ? '_' : ch, x + 15, 98, act ? '#ffe680' : '#ffffff', { align: 'center', scale: 3, shadow: '#061040' });
-      if (act) {
-        const o = Math.round(Math.sin(this.t * 0.2));
-        ctx.fillStyle = '#ffe680';
-        for (let k = 0; k < 4; k++) { ctx.fillRect(x + 14 - k, 86 - o + k - 3, k * 2 + 1, 1); ctx.fillRect(x + 14 - k, 133 + o - k + 3, k * 2 + 1, 1); }
-      }
+    this.panel(52, 50, 280, 116);
+    FONT.draw(ctx, this.tally ? 'YOU MADE THE LEADERBOARD!' : 'LEADERBOARD NAME', VIEW_W / 2, 60, '#ffe680', { align: 'center', shadow: '#061040' });
+    FONT.draw(ctx, 'TYPE YOUR NAME', VIEW_W / 2, 73, '#ffffff', { align: 'center', shadow: '#061040' });
+    const cw = 28, x0 = VIEW_W / 2 - NAME_MAX * cw / 2;
+    for (let i = 0; i < NAME_MAX; i++) {
+      const x = x0 + i * cw, ch = e.text[i], cur = i === Math.min(e.text.length, NAME_MAX - 1) && (e.text.length < NAME_MAX);
+      ctx.fillStyle = cur ? 'rgba(95,212,255,0.28)' : 'rgba(6,10,40,0.6)'; ctx.fillRect(x + 1, 90, cw - 2, 30);
+      ctx.fillStyle = ch ? '#ffe680' : '#5fd4ff'; ctx.fillRect(x + 1, 119, cw - 2, 1.5);
+      if (ch && ch !== ' ') FONT.draw(ctx, ch, x + cw / 2 + 1, 97, '#ffffff', { align: 'center', scale: 2, shadow: '#061040' });
+      if (cur && Math.floor(this.t / 18) % 2) { ctx.fillStyle = '#ffe680'; ctx.fillRect(x + 8, 111, cw - 16, 2); }
     }
-    FONT.draw(ctx, 'UP/DOWN: LETTER   Z: OK   X: BACK', VIEW_W / 2, 150, '#b5ecfc', { align: 'center', shadow: '#061040' });
+    FONT.draw(ctx, 'ENTER: OK    BACKSPACE: DELETE', VIEW_W / 2, 132, '#b5ecfc', { align: 'center', shadow: '#061040' });
+    FONT.draw(ctx, 'TOUCH: ARROWS PICK LETTERS, JUMP = OK', VIEW_W / 2, 148, '#6a78b0', { align: 'center' });
   };
 
   // achievement / reward banner, slides in under the HUD

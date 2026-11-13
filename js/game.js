@@ -3,7 +3,7 @@
 const VIEW_W = 384, VIEW_H = 216, RES = 2;
 const SAVE_KEY = 'pichonkun_save_v1';
 const BOARD_KEY = 'pichonkun_scores_v1';
-const GAME_VERSION = '1.3.1';
+const GAME_VERSION = '1.3.2';
 
 // ================================================================== INPUT
 const Input = (() => {
@@ -17,9 +17,22 @@ const Input = (() => {
   };
   const press = (a) => { if (!down.has(a)) pressed.add(a); down.add(a); };
   const release = (a) => down.delete(a);
+  // While a name is being typed, letter keys are text, not game actions.
+  const typed = [];
+  let typing = false;
   window.addEventListener('keydown', (ev) => {
-    const a = MAP[ev.code];
     AUDIO.init();
+    if (typing) {
+      if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
+      if (ev.key.length === 1) typed.push(ev.key.toUpperCase());
+      else if (ev.key === 'Backspace' || ev.key === 'Delete') typed.push('\b');
+      else if (ev.key === 'Enter') press('confirm');
+      else if (ev.code.startsWith('Arrow')) { if (!ev.repeat) press(MAP[ev.code]); }
+      else return;
+      ev.preventDefault();
+      return;
+    }
+    const a = MAP[ev.code];
     if (!a) return;
     ev.preventDefault();
     if (!ev.repeat) press(a);
@@ -27,7 +40,8 @@ const Input = (() => {
   window.addEventListener('keyup', (ev) => { const a = MAP[ev.code]; if (a) release(a); });
   window.addEventListener('blur', () => down.clear());
   return {
-    down, pressed, press, release,
+    down, pressed, press, release, typed,
+    setTyping: (on) => { typing = on; typed.length = 0; },
     is: (a) => down.has(a),
     hit: (a) => pressed.has(a),
     any: (...as) => as.some(a => pressed.has(a)),
@@ -56,12 +70,16 @@ function writeSave(s) { try { localStorage.setItem(SAVE_KEY, JSON.stringify(s));
 // A local top-10 table (this browser only). The friends of Breezeville hold the
 // starting scores so there is always somebody to beat.
 const BOARD_SIZE = 10;
-const BOARD_SEED = [['GRN', 60000], ['LEA', 48000], ['MSH', 38000], ['FRO', 29000], ['BUZ', 21000], ['DST', 14000], ['MLD', 8000], ['SMG', 3000]];
-const NAME_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ';
+const BOARD_SEED = [['GRANNY', 60000], ['LEAFA', 48000], ['P. MESH', 38000], ['FROSTY', 29000], ['BUZZBY', 21000], ['BARON', 14000], ['QUEEN', 8000], ['SMOGMAW', 3000]];
+const NAME_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .-!', NAME_MAX = 8;
 function loadBoard() {
   try {
     const b = JSON.parse(localStorage.getItem(BOARD_KEY));
-    if (Array.isArray(b) && b.every(e => e && typeof e.name === 'string' && typeof e.score === 'number')) return b;
+    if (Array.isArray(b) && b.every(e => e && typeof e.name === 'string' && typeof e.score === 'number')) {
+      // residents keep their current (longer) names even on boards stored by older versions
+      for (const e of b) if (e.npc) e.name = (BOARD_SEED.find(s => s[1] === e.score) || [e.name])[0];
+      return b;
+    }
   } catch { /* corrupt or unavailable storage: start with the seed table */ }
   return BOARD_SEED.map(([name, score]) => ({ name, score, npc: true, cleared: 0 }));
 }
@@ -318,24 +336,36 @@ class Game {
     if (w.idx === LEVELS.length - 1) this.startEnding();
     else this.startLevel(w.idx + 1);
   }
-  // Arcade-style initials: up/down change the letter, jump confirms it, shoot goes back.
+  // Name for the leaderboard: typed on the keyboard (up to 8 characters, Enter to finish).
+  // Without a keyboard the touch buttons work too: up/shoot pick the letter, right adds one,
+  // left deletes, jump finishes.
   askName(done) {
-    const last = (this.save.lastName || 'AAA').padEnd(3, ' ');
-    this.nameEdit = { chars: [...last].slice(0, 3).map(c => Math.max(0, NAME_CHARS.indexOf(c))), pos: 0, done, t: 0 };
+    this.nameEdit = { text: (this.save.name || this.save.lastName || '').slice(0, NAME_MAX), done, t: 0 };
     this.state = 'name';
+    Input.setTyping(true);
   }
   updateName() {
     const e = this.nameEdit, n = NAME_CHARS.length;
     e.t++;
-    if (Input.hit('up')) { e.chars[e.pos] = (e.chars[e.pos] + 1) % n; AUDIO.sfx('select'); }
-    if (Input.hit('down')) { e.chars[e.pos] = (e.chars[e.pos] + n - 1) % n; AUDIO.sfx('select'); }
-    if (Input.hit('left') || Input.hit('shoot')) { e.pos = Math.max(0, e.pos - 1); AUDIO.sfx('select'); }
-    else if (Input.hit('right') && e.pos < 2) { e.pos++; AUDIO.sfx('select'); }
-    else if (e.t > 10 && Input.any('confirm', 'jump', 'interact')) {
+    const cycle = (d) => {
+      if (!e.text) { e.text = 'A'; return; }
+      const i = NAME_CHARS.indexOf(e.text[e.text.length - 1]);
+      e.text = e.text.slice(0, -1) + NAME_CHARS[(i + d + n) % n];
+    };
+    for (const ch of Input.typed.splice(0)) {
+      if (ch === '\b') e.text = e.text.slice(0, -1);
+      else if (NAME_CHARS.includes(ch) && e.text.length < NAME_MAX) e.text += ch;
+      else continue;
+      AUDIO.sfx('blip');
+    }
+    if (Input.hit('up')) { cycle(1); AUDIO.sfx('select'); }
+    if (Input.hit('down') || Input.hit('shoot')) { cycle(-1); AUDIO.sfx('select'); }
+    if (Input.hit('left')) { e.text = e.text.slice(0, -1); AUDIO.sfx('select'); }
+    if (Input.hit('right') && e.text.length < NAME_MAX) { e.text += 'A'; AUDIO.sfx('select'); }
+    if (e.t > 10 && Input.any('confirm', 'jump')) {
       AUDIO.sfx('confirm');
-      if (e.pos < 2) { e.pos++; return; }
-      const name = e.chars.map(c => NAME_CHARS[c]).join('').trim() || 'AAA';
-      this.save.name = this.save.lastName = name;
+      Input.setTyping(false);
+      this.save.name = this.save.lastName = e.text.trim() || 'PLAYER';
       writeSave(this.save);
       if (this.tally) { this.tally.place = boardSubmit(this.save); if (this.tally.place === 0) this.award('top'); }
       this.nameEdit = null;
@@ -370,7 +400,7 @@ class Game {
     if (this.sub === 'options') {
       const sk = SKINS.find(x => x[0] === this.meta.skin) || SKINS[0];
       return ['MUSIC: ' + (this.save.music ? 'ON' : 'OFF'), 'SOUND FX: ' + (this.save.sfx ? 'ON' : 'OFF'),
-        'GRAPHICS: ' + (this.save.gfx === 'low' ? 'FAST' : 'FANCY'), `SKIN: ${sk[1]} (${this.meta.skins.length}/${SKINS.length})`, 'BACK'];
+        'GRAPHICS: ' + (this.save.gfx === 'low' ? 'FAST' : 'FANCY'), `SKIN: ${sk[1]} (${this.meta.skins.length}/${SKINS.length})`, `NAME: ${this.save.name || '-'}`, 'BACK'];
     }
     if (this.sub === 'mode') return ['NORMAL', 'HARD', 'BACK'];
     const items = [];
@@ -420,6 +450,7 @@ class Game {
       else if (it.startsWith('MUSIC')) { this.save.music = !this.save.music; AUDIO.setMusic(this.save.music); writeSave(this.save); }
       else if (it.startsWith('SOUND')) { this.save.sfx = !this.save.sfx; AUDIO.setSfx(this.save.sfx); writeSave(this.save); AUDIO.sfx('confirm'); }
       else if (it.startsWith('GRAPHICS')) { this.save.gfx = this.save.gfx === 'low' ? 'high' : 'low'; this.save.gfxAuto = false; writeSave(this.save); }
+      else if (it.startsWith('NAME')) { this.tally = null; this.askName(() => { boardSubmit(this.save); this.state = 'title'; }); }
       else if (it.startsWith('SKIN')) {
         const have = SKINS.filter(x => this.meta.skins.includes(x[0]));
         this.meta.skin = have[(have.findIndex(x => x[0] === this.meta.skin) + 1) % have.length][0];

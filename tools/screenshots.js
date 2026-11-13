@@ -38,7 +38,7 @@ const SHOTS = {
     T.step(125, i => { GAME.dialog = null; w.player.inv = 0; w.player.hp = 3; if (i % 20 === 0) Input.pressed.add('shoot'); });
   },
   'level-clear': () => { T.play(1); T.bot(200, { god: true }); GAME.world.drops = GAME.world.dropsTotal; GAME.run.crystals = [0, 2]; GAME.run.score = 3180; GAME.run.bestCombo = 3; GAME.save.name = 'PIC'; GAME.levelComplete(); T.step(220); },
-  'name-entry': () => { GAME.askName(() => {}); GAME.nameEdit.chars = [15, 8, 2]; GAME.nameEdit.pos = 1; T.step(5); },
+  'name-entry': () => { GAME.askName(() => {}); GAME.nameEdit.text = 'PICHON'; T.step(5); Input.setTyping(false); },
   'ending': () => { GAME.state = 'ending'; GAME.say(STORY_ENDING.slice(3)); T.step(160); },
   'secret-room': () => {
     T.play(3); const w = GAME.world, p = w.player; w.enemies = [];
@@ -62,7 +62,7 @@ const SHOTS = {
     T.play(2); T.bot(210, { god: true }); GAME.world.player.hp = 2; GAME.toasts = []; GAME.dialog = null; GAME.toast('ACHIEVEMENT!', 'CLEANING SPREE'); T.step(30); GAME.dialog = null;
     GAME.keepToast = true;
   },
-  'leaderboard': () => { GAME.save.hard = false; GAME.meta.skin = 'blue'; GAME.applySkin(); GAME.save.name = 'PIC'; boardSubmit(GAME.save); GAME.openBoard(); T.step(30); },
+  'leaderboard': () => { GAME.save.hard = false; GAME.meta.skin = 'blue'; GAME.applySkin(); GAME.save.name = 'PICHON'; boardSubmit(GAME.save); GAME.openBoard(); T.step(30); },
 };
 
 (async () => {
