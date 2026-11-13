@@ -144,7 +144,7 @@ const OUTL = { navy: [13, 27, 94], dark: [16, 12, 26] };
     if (o.mouth === 'open') stamp(['.###.', '#ppp#', '#ppp#', '.###.'], fx + 5, fy + 4);
     else stamp(['#..#..#', '.##.##.'], fx + 4, fy + 4);
 
-    // the guardian angel wears feathered wings (behind the body) and a halo over the tip
+    // the guardian angel wears feathered wings (behind the body)
     const layers = [mkArm(-1, arms[1]), mkLeg(-1, legs[1]), mkLeg(1, legs[0]), body, head, mkArm(1, arms[0])];
     if (o.wings !== undefined) {
       const lift = [-4.5, -1.5, 3, -1.5][o.wings];
@@ -157,10 +157,6 @@ const OUTL = { navy: [13, 27, 94], dark: [16, 12, 26] };
         (x, y) => clamp(1 - Math.abs(x - ax) * 0.028 - Math.max(0, y - ay) * 0.05), '#3a5aa8', 0);
       };
       layers.unshift(wing(-1, 1), wing(1, 0.85));
-    }
-    if (o.halo) {
-      const hx = cx + lean, hyy = hy - tipLen * sys - 3.2;
-      layers.push(part(W, H, (x, y) => Math.abs(S.ellipse(x, y, hx, hyy, 7, 2.4)) - 0.75, RAMPS.gold, (x, y) => (y < hyy ? 0.95 : 0.7), '#8a4a00', 0));
     }
     return mkSpr(stack(...layers), 1.5);
   }
@@ -733,10 +729,10 @@ const OUTL = { navy: [13, 27, 94], dark: [16, 12, 26] };
     }
     Object.assign(SPR, SKIN_CACHE[id]);
   };
-  const ANGEL = GFX.ramp('#44529c', '#6878c4', '#8c9ee4', '#aebef4', '#c8d6fc', '#e0e8ff', '#f6f8ff');
+  const ANGEL_RAMP = GFX.ramp('#8a5a10', '#c08a20', '#e8b840', '#ffd866', '#ffe894', '#fff4c4', '#fffbe8');
   function buildAngel() {
-    SPR.angel = [0, 1, 2, 3].map(f => pichon({ ramp: ANGEL, wings: f, halo: true, legs: [[-1.6, 1.6], [-2.6, 1]], arms: [0.5, -0.5], sq: [-0.08, 0, 0.08, 0][f], tip: 15.5 }));
-    SPR.angel_shoot = pichon({ ramp: ANGEL, wings: 1, halo: true, legs: [[-1.6, 1.6], [-2.6, 1]], arms: [1.55, -0.5], tip: 15.5 });
+    SPR.angel = [0, 1, 2, 3].map(f => pichon({ ramp: ANGEL_RAMP, wings: f, legs: [[-1.6, 1.6], [-2.6, 1]], arms: [0.5, -0.5], sq: [-0.08, 0, 0.08, 0][f] }));
+    SPR.angel_shoot = pichon({ ramp: ANGEL_RAMP, wings: 1, legs: [[-1.6, 1.6], [-2.6, 1]], arms: [1.55, -0.5] });
   }
   window.buildSprites = function buildSprites() {
     window.setSkin('blue');

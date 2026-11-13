@@ -1,7 +1,7 @@
 # Security Policy
 
 Pichonkun is a static browser game. It has no server, no accounts and no network requests,
-and only stores save data in your browser's `localStorage`.
+and only stores save data in your browser's `localStorage`. Backup files are created and read on your device; nothing is uploaded.
 
 ## Supported versions
 

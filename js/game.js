@@ -3,7 +3,8 @@
 const VIEW_W = 384, VIEW_H = 216, RES = 2;
 const SAVE_KEY = 'pichonkun_save_v1';
 const BOARD_KEY = 'pichonkun_scores_v1';
-const GAME_VERSION = '1.4.0';
+const PREV_KEY = 'pichonkun_save_prev';   // the adventure replaced by the last New Game
+const GAME_VERSION = '1.5.0';
 
 // ================================================================== INPUT
 const Input = (() => {
@@ -12,7 +13,7 @@ const Input = (() => {
     ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right',
     ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down',
     KeyZ: 'jump', Space: 'jump', KeyK: 'jump',
-    KeyX: 'shoot', KeyJ: 'shoot', KeyL: 'shoot',
+    KeyX: 'shoot', KeyJ: 'shoot', KeyL: 'shoot', KeyC: 'angel', KeyV: 'angel',
     KeyE: 'interact', Enter: 'confirm', Escape: 'pause', KeyP: 'pause', KeyM: 'mute',
   };
   const press = (a) => { if (!down.has(a)) pressed.add(a); down.add(a); };
@@ -55,7 +56,7 @@ const newRunId = () => Date.now().toString(36) + Math.floor(Math.random() * 1e6)
 // Score state of the level being played. Kept across deaths, stored with every auto-save.
 const newRun = () => ({ score: 0, time: 0, hits: 0, deaths: 0, kills: [], crystals: [], secrets: [], miss: {}, leverMiss: 0, bossDmg: 0, boss: false, bossHurt: 0, bestCombo: 0 });
 function defaultSave() {
-  return { unlocked: 1, level: 0, cp: null, vapor: false, best: {}, hi: {}, cry: {}, name: '', runId: newRunId(), hard: false, wing: true, stats: { kills: 0, deaths: 0, hits: 0 }, started: false, finished: false, music: true, sfx: true, gfx: 'high', gfxAuto: true };
+  return { unlocked: 1, level: 0, cp: null, vapor: false, best: {}, hi: {}, cry: {}, name: '', runId: newRunId(), hard: false, air: 0, angelXp: 0, stats: { kills: 0, deaths: 0, hits: 0 }, started: false, finished: false, music: true, sfx: true, gfx: 'high', gfxAuto: true };
 }
 function loadSave() {
   try {
@@ -152,6 +153,7 @@ class Game {
     this.run = Object.assign(newRun(), cp && cp.run ? JSON.parse(JSON.stringify(cp.run)) : {});
     this.tally = null;
     this.world = new World(this, idx, cp);
+    this.lastSplash = this.splashLevel();
     this.dialog = null; this.riddle = null;
     this.state = 'intro'; this.introT = 0; this.iris = 0;
     AUDIO.playMusic(LEVELS[idx].music);
@@ -173,6 +175,104 @@ class Game {
   // Adds points (x1.5 in hard mode) and returns what was actually added.
   addScore(n) { n = Math.round(n * this.scoreMult()); this.run.score += n; this.scorePop = 12; return n; }
   scoreMult() { return this.save.hard ? HARD.score : 1; }
+
+  // ------------------------------------------------- splash power + angel
+  // Water drops collected over the adventure (best per level; the current level counts live).
+  dropsBanked() {
+    const w = this.world;
+    let n = 0;
+    LEVELS.forEach((_, i) => { n += w && i === w.idx ? Math.max(this.save.best[i] || 0, w.drops) : (this.save.best[i] || 0); });
+    return n;
+  }
+  splashLevel() { return levelFor(SPLASH.need, this.dropsBanked()); }
+  angelLevel() { return levelFor(ANGEL.need, this.save.angelXp || 0); }
+  onDrop() {
+    const lv = this.splashLevel();
+    if (lv > this.lastSplash) { this.toast(`SPLASH POWER ${lv}!`, SPLASH.name[lv - 1]); AUDIO.sfx('powerup'); }
+    this.lastSplash = lv;
+  }
+  // The PURE AIR meter: fills with clean play, drains when hurt, frozen while Angel is out.
+  addAir(n) {
+    if (this.world && this.world.wing) return;
+    const before = this.save.air || 0;
+    this.save.air = Math.max(0, Math.min(AIR.full, before + n));
+    if (before < AIR.full && this.save.air >= AIR.full) { this.toast('PURE AIR FULL!', 'PRESS C TO CALL ANGEL'); AUDIO.sfx('checkpoint'); }
+  }
+  callAngel() {
+    const w = this.world;
+    if (!w || w.wing || w.player.dead || (this.save.air || 0) < AIR.full) return;
+    this.save.air = 0;
+    w.callAngel(this.angelLevel());
+  }
+  angelXp(n) {
+    const before = this.angelLevel();
+    this.save.angelXp = (this.save.angelXp || 0) + n;
+    const lv = this.angelLevel();
+    if (lv > before) { this.toast(`ANGEL LEVEL ${lv}!`, 'STAYS LONGER, SHOOTS FASTER'); AUDIO.sfx('powerup'); }
+  }
+
+  // ------------------------------------------------------- backup + restore
+  exportData() {
+    return { app: 'pichonkun', format: 1, version: GAME_VERSION, date: new Date().toISOString(), save: this.save, board: loadBoard(), meta: this.meta };
+  }
+  // Returns '' on success or a short reason. Nothing is written unless the whole file is valid.
+  importData(d) {
+    if (!d || d.app !== 'pichonkun' || !d.save || typeof d.save.unlocked !== 'number' || typeof d.save.hi !== 'object') return 'NOT A PICHONKUN BACKUP';
+    if (d.format !== 1) return 'BACKUP IS FROM A NEWER VERSION';
+    if (d.board && !(Array.isArray(d.board) && d.board.every(e => e && typeof e.name === 'string' && typeof e.score === 'number'))) return 'BACKUP IS DAMAGED';
+    if (d.meta && (typeof d.meta !== 'object' || typeof d.meta.ach !== 'object')) return 'BACKUP IS DAMAGED';
+    if (this.save.started) { try { localStorage.setItem(PREV_KEY, JSON.stringify(this.save)); } catch { /* storage full or blocked */ } }
+    writeSave(Object.assign(defaultSave(), d.save));
+    if (d.board) writeBoard(d.board.slice(0, BOARD_SIZE).map(e => ({ id: e.id, name: String(e.name).slice(0, NAME_MAX), score: e.score, cleared: e.cleared | 0, hard: !!e.hard, npc: !!e.npc })));
+    if (d.meta) writeMeta(Object.assign(defaultMeta(), d.meta));
+    this.reloadFromStorage();
+    return '';
+  }
+  reloadFromStorage() {
+    this.save = loadSave(); this.meta = loadMeta(); this.stats = this.save.stats;
+    this.world = null; this.terrainCache = null;
+    AUDIO.setMusic(this.save.music); AUDIO.setSfx(this.save.sfx);
+    this.checkRewards(true); this.applySkin();
+  }
+  downloadBackup() {
+    const data = JSON.stringify(this.exportData());
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([data], { type: 'application/json' }));
+    a.download = `pichonkun-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    this.meta.lastBackup = new Date().toISOString().slice(0, 10); writeMeta(this.meta);
+    this.backupMsg = 'BACKUP FILE SAVED TO YOUR DOWNLOADS';
+  }
+  pickBackupFile() {
+    const inp = document.createElement('input');
+    inp.type = 'file'; inp.accept = '.json,application/json';
+    inp.onchange = () => {
+      const f = inp.files && inp.files[0];
+      if (!f) return;
+      if (f.size > 2e6) { this.backupMsg = 'FILE IS TOO BIG'; return; }
+      f.text().then(t => {
+        let d = null;
+        try { d = JSON.parse(t); } catch { /* not JSON: reported below */ }
+        const err = this.importData(d);
+        this.backupMsg = err || 'BACKUP LOADED!';
+        AUDIO.sfx(err ? 'wrong' : 'right');
+        this.menu = 0;
+      });
+    };
+    inp.click();
+  }
+  // Swap the current adventure with the one replaced by the last New Game or backup load.
+  restorePrevious() {
+    let prev = null;
+    try { prev = JSON.parse(localStorage.getItem(PREV_KEY)); } catch { /* corrupt: treated as missing */ }
+    if (!prev || typeof prev.unlocked !== 'number') { this.backupMsg = 'NOTHING TO RESTORE'; return; }
+    try { localStorage.setItem(PREV_KEY, JSON.stringify(this.save)); } catch { /* storage full or blocked */ }
+    writeSave(Object.assign(defaultSave(), prev));
+    this.reloadFromStorage();
+    this.backupMsg = 'LAST ADVENTURE RESTORED!'; this.menu = 0;
+    AUDIO.sfx('right');
+  }
 
   // ------------------------------------------------- achievements + rewards
   toast(title, text) { this.toasts.push({ title, text, t: 0 }); }
@@ -400,7 +500,12 @@ class Game {
     if (this.sub === 'options') {
       const sk = SKINS.find(x => x[0] === this.meta.skin) || SKINS[0];
       return ['MUSIC: ' + (this.save.music ? 'ON' : 'OFF'), 'SOUND FX: ' + (this.save.sfx ? 'ON' : 'OFF'),
-        'GRAPHICS: ' + (this.save.gfx === 'low' ? 'FAST' : 'FANCY'), `SKIN: ${sk[1]} (${this.meta.skins.length}/${SKINS.length})`, `NAME: ${this.save.name || '-'}`, 'WINGMAN: ' + (this.save.wing !== false ? 'ON' : 'OFF'), 'BACK'];
+        'GRAPHICS: ' + (this.save.gfx === 'low' ? 'FAST' : 'FANCY'), `SKIN: ${sk[1]} (${this.meta.skins.length}/${SKINS.length})`, `NAME: ${this.save.name || '-'}`, 'BACKUP', 'BACK'];
+    }
+    if (this.sub === 'backup') {
+      const items = ['SAVE BACKUP FILE', 'LOAD BACKUP FILE'];
+      if (localStorage.getItem(PREV_KEY)) items.push('RESTORE LAST ADVENTURE');
+      return items.concat('BACK');
     }
     if (this.sub === 'mode') return ['NORMAL', 'HARD', 'BACK'];
     const items = [];
@@ -413,7 +518,9 @@ class Game {
   // Wipe the adventure (not the settings, leaderboard or achievements) and start over.
   newGame(hard) {
     const k = this.save;
-    this.save = Object.assign(defaultSave(), { music: k.music, sfx: k.sfx, gfx: k.gfx, gfxAuto: k.gfxAuto, lastName: k.lastName, wing: k.wing !== false, hard: !!hard });
+    // the adventure being replaced is kept, so a New Game chosen by mistake can be undone
+    if (k.started) { try { localStorage.setItem(PREV_KEY, JSON.stringify(k)); } catch { /* storage full or blocked */ } }
+    this.save = Object.assign(defaultSave(), { music: k.music, sfx: k.sfx, gfx: k.gfx, gfxAuto: k.gfxAuto, lastName: k.lastName, hard: !!hard });
     this.stats = this.save.stats; writeSave(this.save);
     this.sub = null;
     this.beginStory();
@@ -431,7 +538,7 @@ class Game {
     if (Input.hit('up')) { this.menu = (this.menu + items.length - 1) % items.length; AUDIO.sfx('select'); }
     if (Input.hit('down')) { this.menu = (this.menu + 1) % items.length; AUDIO.sfx('select'); }
     this.menu = Math.min(this.menu, items.length - 1);
-    if (this.sub && Input.any('pause', 'shoot')) { this.sub = null; this.menu = 0; AUDIO.sfx('select'); return; }
+    if (this.sub && Input.any('pause', 'shoot')) { this.sub = this.sub === 'backup' ? 'options' : null; this.menu = 0; AUDIO.sfx('select'); return; }
     if (Input.any('confirm', 'jump', 'interact')) {
       AUDIO.init();
       const it = items[this.menu];
@@ -445,12 +552,15 @@ class Game {
       else if (it === 'LEADERBOARD') this.openBoard();
       else if (it === 'ACHIEVEMENTS') { this.state = 'awards'; this.boardT = 0; }
       else if (it === 'OPTIONS') { this.sub = 'options'; this.menu = 0; }
-      else if (it === 'BACK') { this.sub = null; this.menu = 0; }
+      else if (it === 'BACK') { this.sub = this.sub === 'backup' ? 'options' : null; this.menu = 0; }
       else if (it === 'LEVEL SELECT') { this.state = 'levelselect'; this.lsSel = Math.min(this.save.unlocked - 1, this.save.level); }
       else if (it.startsWith('MUSIC')) { this.save.music = !this.save.music; AUDIO.setMusic(this.save.music); writeSave(this.save); }
       else if (it.startsWith('SOUND')) { this.save.sfx = !this.save.sfx; AUDIO.setSfx(this.save.sfx); writeSave(this.save); AUDIO.sfx('confirm'); }
       else if (it.startsWith('GRAPHICS')) { this.save.gfx = this.save.gfx === 'low' ? 'high' : 'low'; this.save.gfxAuto = false; writeSave(this.save); }
-      else if (it.startsWith('WINGMAN')) { this.save.wing = this.save.wing === false; writeSave(this.save); }
+      else if (it === 'BACKUP') { this.sub = 'backup'; this.menu = 0; this.backupMsg = ''; if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); }
+      else if (it === 'SAVE BACKUP FILE') this.downloadBackup();
+      else if (it === 'LOAD BACKUP FILE') this.pickBackupFile();
+      else if (it === 'RESTORE LAST ADVENTURE') this.restorePrevious();
       else if (it.startsWith('NAME')) { this.tally = null; this.askName(() => { boardSubmit(this.save); this.state = 'title'; }); }
       else if (it.startsWith('SKIN')) {
         const have = SKINS.filter(x => this.meta.skins.includes(x[0]));
@@ -481,6 +591,7 @@ class Game {
     const target = w.interactTarget();
     const wantsInteract = Input.hit('interact') || (target && Input.hit('up'));
     if (target && wantsInteract && !w.player.dead) { w.interact(target); return; }
+    if (Input.hit('angel')) this.callAngel();
     const inp = {
       left: Input.is('left'), right: Input.is('right'), up: Input.is('up'), down: Input.is('down'),
       jump: Input.is('jump'), jumpPressed: Input.hit('jump'), shootPressed: Input.hit('shoot'),
@@ -503,6 +614,7 @@ class Game {
         this.riddle = null;
         this.world.solveRiddle(r.ri);
         const pts = this.addScore(SCORE.riddle[Math.min(SCORE.riddle.length - 1, this.run.miss[r.ri] || 0)]);
+        if (!this.run.miss[r.ri]) this.addAir(AIR.riddle);
         this.world.float(this.world.player.x - 24, this.world.player.y - 20, `CORRECT! +${pts}`, '#7cff4f');
         this.saveGame('RIDDLE SOLVED');
       } else {
@@ -513,7 +625,7 @@ class Game {
     }
   }
 
-  pauseItems() { return ['RESUME', 'RESTART FROM CHECKPOINT', 'WINGMAN: ' + (this.save.wing !== false ? 'ON' : 'OFF'), 'MUSIC: ' + (this.save.music ? 'ON' : 'OFF'), 'SOUND FX: ' + (this.save.sfx ? 'ON' : 'OFF'), 'GRAPHICS: ' + (this.save.gfx === 'low' ? 'FAST' : 'FANCY'), 'QUIT TO TITLE']; }
+  pauseItems() { return ['RESUME', 'RESTART FROM CHECKPOINT', 'MUSIC: ' + (this.save.music ? 'ON' : 'OFF'), 'SOUND FX: ' + (this.save.sfx ? 'ON' : 'OFF'), 'GRAPHICS: ' + (this.save.gfx === 'low' ? 'FAST' : 'FANCY'), 'QUIT TO TITLE']; }
   updatePause() {
     const items = this.pauseItems();
     if (Input.hit('up')) { this.pauseSel = (this.pauseSel + items.length - 1) % items.length; AUDIO.sfx('select'); }
@@ -524,7 +636,6 @@ class Game {
       const it = items[this.pauseSel];
       if (it === 'RESUME') this.state = 'play';
       else if (it.startsWith('RESTART')) { this.respawn(); this.state = 'play'; }
-      else if (it.startsWith('WINGMAN')) { this.save.wing = this.save.wing === false; writeSave(this.save); this.world.setWingman(this.save.wing); }
       else if (it.startsWith('MUSIC')) { this.save.music = !this.save.music; AUDIO.setMusic(this.save.music); writeSave(this.save); }
       else if (it.startsWith('SOUND')) { this.save.sfx = !this.save.sfx; AUDIO.setSfx(this.save.sfx); writeSave(this.save); }
       else if (it.startsWith('GRAPHICS')) { this.save.gfx = this.save.gfx === 'low' ? 'high' : 'low'; this.save.gfxAuto = false; writeSave(this.save); }

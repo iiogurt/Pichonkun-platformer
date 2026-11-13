@@ -281,36 +281,85 @@ test('name can be changed from Options and the leaderboard row follows', async p
   assert.deepStrictEqual(r, { state: 'title', name: 'NEWNAME9', row: 'NEWNAME9', keysBackToNormal: true });
 });
 
-test('wingman follows Pichonkun, shoots enemies in range and can be switched off', async page => {
+test('splash power grows with water drops collected over the adventure', async page => {
   const r = await page.evaluate(() => {
-    localStorage.clear(); GAME.save = defaultSave(); Input.down.clear(); GAME.dialog = null;
-    T.play(0);
-    const w = GAME.world, p = w.player, a = w.wing;
-    const onByDefault = !!a;
-    w.enemies.forEach(e => { e.x += 5000; });                 // nobody near: it must not shoot
-    T.step(120, () => { GAME.dialog = null; Input.down.add('right'); });
-    Input.down.clear();
-    const quiet = w.shots.length === 0, dist = Math.hypot(a.x - p.x, a.y - p.y);
-    const e = w.enemies[0]; e.x = p.x + 70; e.y = p.y - 10; e.ox = e.x; e.oy = e.y;
-    const hp0 = e.hp, kills0 = GAME.stats.kills;
-    let fired = false;
-    T.step(200, () => { GAME.dialog = null; if (w.shots.length) fired = true; });
-    const hit = e.hp < hp0 || GAME.stats.kills > kills0;
-    // through a wall: the angel is never blocked
-    a.x = p.x; a.y = p.y + 40; T.step(60, () => { GAME.dialog = null; });
-    const free = Math.hypot(a.x - p.x, a.y - p.y) < 40;
-    GAME.state = 'pause'; GAME.pauseSel = GAME.pauseItems().findIndex(i => i.startsWith('WINGMAN'));
-    Input.pressed.add('confirm'); T.step(1); GAME.state = 'play'; GAME.render();
-    const off = w.wing === null && GAME.save.wing === false;
-    T.play(0); const staysOff = GAME.world.wing === null;
-    return { onByDefault, quiet, dist: Math.round(dist), fired, hit, free, off, staysOff };
+    localStorage.clear(); GAME.save = defaultSave(); GAME.meta = defaultMeta(); GAME.toasts = []; Input.down.clear(); GAME.dialog = null;
+    const fire = (banked) => {
+      GAME.save.best = { 5: banked }; T.play(0);
+      const w = GAME.world; w.enemies = [];
+      Input.pressed.add('shoot'); T.step(1);
+      return { lv: GAME.splashLevel(), n: w.shots.length, dmg: w.shots.reduce((m, x) => Math.max(m, x.dmg), 0) };
+    };
+    const levels = [0, 15, 45, 85, 130].map(fire);
+    // crossing a threshold while collecting announces the new power
+    GAME.save.best = { 5: 14 }; T.play(0); GAME.toasts = [];
+    const w = GAME.world, d = w.objects.find(o => o.type === 'drop');
+    w.player.x = d.x; w.player.y = d.y; T.step(3);
+    return { levels, announced: GAME.toasts.some(t => t.title.startsWith('SPLASH POWER 2')), now: GAME.splashLevel() };
   });
-  assert.ok(r.onByDefault, 'wingman should be on by default');
-  assert.ok(r.quiet, 'wingman shot with no enemy near');
-  assert.ok(r.dist < 60, `wingman fell behind (${r.dist}px)`);
-  assert.ok(r.fired && r.hit, 'wingman did not hit an enemy in range');
-  assert.ok(r.free, 'wingman got stuck');
-  assert.ok(r.off && r.staysOff, 'wingman did not switch off');
+  assert.deepStrictEqual(r.levels.map(l => l.lv), [1, 2, 3, 4, 5]);
+  assert.deepStrictEqual(r.levels.map(l => l.n), [1, 1, 2, 3, 3]);
+  assert.strictEqual(r.levels[4].dmg, 2);
+  assert.ok(r.announced && r.now === 2, 'power-up was not announced');
+});
+
+test('angel: earned with a full PURE AIR meter, temporary, shoots and levels up', async page => {
+  const r = await page.evaluate(() => {
+    localStorage.clear(); GAME.save = defaultSave(); GAME.meta = defaultMeta(); GAME.toasts = []; Input.down.clear(); GAME.dialog = null;
+    T.play(0);
+    const w = GAME.world, p = w.player;
+    const absentAtStart = w.wing === null;
+    Input.pressed.add('angel'); T.step(1);
+    const refusedWhenEmpty = w.wing === null;
+    // cleaning enemies fills the meter, getting hurt drains it
+    const [a, b] = w.enemies; w.damageEnemy(a, 9, 1); const afterKill = GAME.save.air;
+    p.inv = 0; p.hurt(1); const afterHurt = GAME.save.air; p.hp = p.maxHp; p.inv = 0;
+    GAME.save.air = AIR.full; GAME.save.angelXp = ANGEL.need[1] - 1;
+    Input.pressed.add('angel'); T.step(1);
+    const called = !!w.wing, meterSpent = GAME.save.air === 0, lv = w.wing.level, life = w.wing.life;
+    GAME.addAir(50); const frozen = GAME.save.air === 0;
+    // it shoots what is near and its kills are experience
+    w.enemies.forEach(e => { e.x += 5000; });
+    b.x = p.x + 60; b.y = p.y - 10; b.ox = b.x; b.oy = b.y; b.hp = 1;
+    let angelShot = false;
+    T.step(150, () => { GAME.dialog = null; p.inv = 2; if (w.shots.some(x => x.angel)) angelShot = true; });
+    const xp = GAME.save.angelXp, lvAfter = GAME.angelLevel();
+    T.step(life, () => { GAME.dialog = null; p.inv = 2; });
+    return { absentAtStart, refusedWhenEmpty, afterKill, afterHurt, called, meterSpent, lv, seconds: life / 60, frozen, angelShot, xp, lvAfter, gone: w.wing === null };
+  });
+  assert.ok(r.absentAtStart && r.refusedWhenEmpty, 'angel must be earned');
+  assert.ok(r.afterKill > 0 && r.afterHurt < r.afterKill, 'meter should fill on kills and drain on damage');
+  assert.ok(r.called && r.meterSpent && r.frozen);
+  assert.strictEqual(r.lv, 1); assert.strictEqual(r.seconds, 15);
+  assert.ok(r.angelShot, 'angel never shot');
+  assert.ok(r.xp >= 6 && r.lvAfter === 2, `angel did not level up (xp ${r.xp})`);
+  assert.ok(r.gone, 'angel should leave when its time is up');
+});
+
+test('backup: export and import round-trip, bad files rejected, New Game can be undone', async page => {
+  const r = await page.evaluate(() => {
+    localStorage.clear(); GAME.save = defaultSave(); GAME.meta = defaultMeta(); GAME.toasts = []; Input.down.clear(); GAME.dialog = null;
+    Object.assign(GAME.save, { started: true, unlocked: 6, name: 'ZORA', air: 40, angelXp: 7, hi: { 0: { score: 7000, rank: 'A', time: 80 } }, best: { 0: 17 } });
+    GAME.meta.ach.crystal1 = 1; writeSave(GAME.save); writeMeta(GAME.meta); boardSubmit(GAME.save);
+    const file = JSON.parse(JSON.stringify(GAME.exportData()));
+    const bad = [GAME.importData(null), GAME.importData({ app: 'other' }), GAME.importData(Object.assign({}, file, { board: [{ name: 5 }] }))];
+    const untouched = GAME.save.unlocked === 6;
+    localStorage.clear(); GAME.save = defaultSave(); GAME.meta = defaultMeta();      // "the browser lost everything"
+    const err = GAME.importData(file);
+    const back = { unlocked: GAME.save.unlocked, name: GAME.save.name, xp: GAME.save.angelXp, ach: !!GAME.meta.ach.crystal1,
+      row: loadBoard().some(e => e.name === 'ZORA' && e.score === 7000), stored: JSON.parse(localStorage.getItem(SAVE_KEY)).unlocked };
+    GAME.newGame(false); GAME.dialog = null;
+    const fresh = GAME.save.unlocked;
+    GAME.restorePrevious();
+    GAME.state = 'title'; GAME.sub = 'backup'; GAME.menu = 0; GAME.render();
+    return { bad, untouched, err, back, fresh, undone: GAME.save.unlocked, items: GAME.titleItems() };
+  });
+  assert.ok(r.bad.every(e => e), 'a bad backup was accepted');
+  assert.ok(r.untouched, 'a rejected import changed the save');
+  assert.strictEqual(r.err, '');
+  assert.deepStrictEqual(r.back, { unlocked: 6, name: 'ZORA', xp: 7, ach: true, row: true, stored: 6 });
+  assert.strictEqual(r.fresh, 1); assert.strictEqual(r.undone, 6);
+  assert.ok(r.items.includes('RESTORE LAST ADVENTURE'));
 });
 
 test('audio engine runs every track and sound effect', async page => {

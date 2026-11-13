@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-11-13
+
+### Added
+
+- **Splash power**: Pichonkun's shot grows in five steps (single, rapid, twin, triple, mega) with
+  the water drops collected over the adventure. Shown as PWR pips in the HUD.
+- **Pure Air meter**: fills by cleaning enemies (faster with combos), finding crystals and secrets,
+  answering riddles first try and hitting bosses. Getting hurt drains it.
+- **Angel levels up** from 1 to 5 with what it cleans: longer visits, faster and further shots,
+  then two and three splashes at once.
+- **Backup and restore** under Options: save all progress to a file, load it back on any device,
+  and undo a New Game. The browser is also asked to keep the game's data permanently.
+
+### Changed
+
+- **Angel is now an earned, temporary perk** instead of a permanent companion. A full Pure Air
+  meter calls it with C (or the ANGEL touch button) for 15 to 25 seconds.
+- Angel is golden and no longer has a halo.
+- The wingman on/off option is gone, since calling Angel is now the player's choice.
+
 ## [1.4.0] - 2026-11-13
 
 ### Added
@@ -166,7 +186,8 @@ First public release. Play it at https://iiogurt.github.io/Pichonkun-platformer/
 - Tooling: ESLint, a level-data validator, a headless Chrome smoke test and a screenshot generator.
 - GitHub Actions for CI, GitHub Pages deployment and tagged releases.
 
-[Unreleased]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.4.0...HEAD
+[Unreleased]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.5.0...HEAD
+[1.5.0]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.3.2...v1.4.0
 [1.3.2]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.3.1...v1.3.2
 [1.3.1]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.3.0...v1.3.1

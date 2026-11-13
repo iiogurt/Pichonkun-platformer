@@ -50,3 +50,21 @@ const SKINS = [
 
 // Hard mode: unlocked by finishing the game once.
 const HARD = { hearts: 2, enemyHp: 1, bossHp: 1.5, enemyTick: 4, bossTick: 5, score: 1.5 };
+
+// Splash power: Pichonkun's shot grows with the water drops collected over the whole adventure
+// (best count per level, so replaying a level can only help). need[i] = drops for level i+1.
+const SPLASH = {
+  need: [0, 15, 45, 85, 130],
+  name: ['SINGLE SPLASH', 'RAPID SPLASH', 'TWIN SPLASH', 'TRIPLE SPLASH', 'MEGA SPLASH'],
+  cooldown: [13, 10, 10, 10, 9], maxShots: [4, 5, 8, 12, 12], life: [40, 50, 50, 50, 54],
+};
+
+// Angel is a perk, not a companion: clean play fills the PURE AIR meter, a full meter calls
+// Angel for a short while. Angel gains experience from what it cleans and levels up.
+const AIR = { full: 100, killBase: 2, killPerCombo: 2, crystal: 15, secret: 8, riddle: 8, bossHit: 2, hurt: -15 };
+const ANGEL = {
+  need: [0, 6, 16, 30, 50],            // experience for level i+1 (1 per enemy cleaned, 0.5 per boss hit)
+  seconds: [15, 17, 19, 22, 25], cooldown: [50, 44, 38, 32, 26], range: [110, 120, 130, 140, 150], shots: [1, 1, 2, 2, 3],
+  speed: 4.6,
+};
+const levelFor = (need, v) => { let l = 1; for (let i = 1; i < need.length; i++) if (v >= need[i]) l = i + 1; return l; };

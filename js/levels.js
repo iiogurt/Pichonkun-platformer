@@ -23,8 +23,8 @@ const STORY_INTRO = [
   { who: 'smogmaw', text: 'HAHAHA! I will clog every filter and fill every lung with dust, pollen and germs! Breezeville will be MINE!' },
   { who: 'narrator', text: 'In the cooling coil of the Great Air Conditioner, a tiny droplet of water woke up. His name was PICHONKUN.' },
   { who: 'pichon', text: 'Huh? Why does the air smell so yucky? ... Achoo! Something is very wrong!' },
-  { who: 'narrator', text: 'High above, Granny Cloud saw it all. She sent a little guardian to watch over him: ANGEL, a droplet with wings.' },
-  { who: 'angel', text: 'Don\'t worry, Pichonkun. I can fly, and I\'ll splash anything that comes too close!' },
+  { who: 'narrator', text: 'High above, Granny Cloud saw it all. She woke a little guardian to watch over him: ANGEL, a golden droplet with wings.' },
+  { who: 'angel', text: 'I can only fly where the air is pure, Pichonkun. Clean up well, and when the PURE AIR meter is full, call me with C!' },
   { who: 'narrator', text: 'The first gust of dirty air blew Pichonkun all the way out into the meadow. His adventure begins!' },
 ];
 
@@ -42,7 +42,7 @@ const STORY_ENDING = [
 const PORTRAITS = {
   narrator: { name: '', color: '#ffe680' },
   pichon: { name: 'PICHONKUN', color: '#5fd4ff', spr: 'pichon_idle' },
-  angel: { name: 'ANGEL', color: '#fff0b8', spr: 'angel' },
+  angel: { name: 'ANGEL', color: '#ffe060', spr: 'angel' },
   leafa: { name: 'LEAFA', color: '#8cf06c', spr: 'npc_leafa' },
   mesh: { name: 'PROF. MESH', color: '#e8dcc0', spr: 'npc_mesh' },
   frosty: { name: 'FROSTY', color: '#d7f6ff', spr: 'npc_frosty' },

@@ -16,6 +16,7 @@ const SECONDS = 8;
 // keep moving, jump only for walls, gaps and water drops, shoot when an enemy is ahead.
 const setup = `() => {
   localStorage.clear(); GAME.save = defaultSave(); GAME.meta = defaultMeta(); GAME.toasts = []; GAME.applySkin();
+  GAME.save.air = 96;            // nearly full, so the first clean-up fills it and the clip shows Angel being called
   T.play(0); window.__hold = 0; window.__cool = 0; T.step(20);
 }`;
 const tick = `() => {
@@ -30,6 +31,7 @@ const tick = `() => {
   if (p.ground && window.__hold <= 0 && (wall || gap || drop)) { Input.pressed.add('jump'); window.__hold = drop || wall ? 22 : 16; }
   if (window.__hold-- > 0) Input.down.add('jump');
   if (foe && window.__cool-- <= 0) { Input.pressed.add('shoot'); window.__cool = 22; }
+  if (GAME.save.air >= AIR.full && !w.wing) Input.pressed.add('angel');
 }`;
 
 (async () => {
