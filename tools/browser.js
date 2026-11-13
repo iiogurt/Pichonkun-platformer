@@ -47,6 +47,9 @@ async function openGame() {
   await page.waitForFunction(() => window.GAME);
   // Install in-page helpers used by tests: deterministic stepping of the game loop.
   await page.evaluate(() => {
+    // Stop the game's own loop: from here on only T.step() advances the game, so tests,
+    // screenshots and recordings are deterministic and nothing runs between two calls.
+    window.requestAnimationFrame = () => 0;
     window.T = {
       step(n, fn) { for (let i = 0; i < n; i++) { if (fn) fn(i); GAME.update(); Input.endFrame(); } },
       play(level, cp) { GAME.startLevel(level, cp); GAME.state = 'play'; GAME.dialog = null; },

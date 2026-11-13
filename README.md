@@ -13,7 +13,7 @@
 ![HTML5 Canvas](https://img.shields.io/badge/HTML5-canvas-e34f26?logo=html5&logoColor=white)
 ![Vanilla JS](https://img.shields.io/badge/JavaScript-no%20dependencies-f7df1e?logo=javascript&logoColor=black)
 
-<img src="docs/gameplay.gif" alt="Gameplay: running and cleaning up enemies, finding a secret room, a boss fight and the score tally" width="720">
+<img src="docs/gameplay.gif" alt="Gameplay: the first seconds of level 1, in real time" width="720">
 
 </div>
 
@@ -127,7 +127,7 @@ On phones and tablets, on-screen buttons appear automatically.
 | **End of level** | 1000 for the clear, 20 per second under the par time, 1500 for no damage (or 500 for no deaths), 1000 for all drops, 1500 for all three crystals |
 
 Each level gives a rank from **D** to **S**. Your best score per level is kept, so replaying a level from
-**Level Select** can only raise your total. The total goes on the **Leaderboard** under your three initials,
+**Level Select** can only raise your total. The total goes on the **Leaderboard** under your name (up to 8 characters, typed on the keyboard),
 next to the residents of Breezeville.
 
 Secret walls look like ordinary ground but Pichonkun can walk through them. Watch for a faint twinkle.

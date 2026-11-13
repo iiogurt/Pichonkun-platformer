@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.2] - 2026-11-13
+
+### Fixed
+
+- **Run speed**: holding a direction kept accelerating Pichonkun to about three times the intended
+  speed (present since 1.0.0). Running is now capped at the designed speed, which makes jumps more
+  predictable. All 30 crystals were re-checked and are still reachable.
+
+### Changed
+
+- **Leaderboard names** are now up to 8 characters and typed on the keyboard (Enter to finish,
+  Backspace to delete). On touch screens the on-screen buttons pick the letters. The residents on
+  the board got their full names. An existing name can be changed under Options.
+- The README animation is now one continuous 8-second run of level 1 at 30 frames per second in
+  real time. The old clip advanced the game between captured frames, so it looked fast and choppy.
+
 ## [1.3.1] - 2026-11-13
 
 ### Changed
@@ -137,7 +153,8 @@ First public release. Play it at https://iiogurt.github.io/Pichonkun-platformer/
 - Tooling: ESLint, a level-data validator, a headless Chrome smoke test and a screenshot generator.
 - GitHub Actions for CI, GitHub Pages deployment and tagged releases.
 
-[Unreleased]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.3.1...HEAD
+[Unreleased]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.3.2...HEAD
+[1.3.2]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.3.1...v1.3.2
 [1.3.1]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.1.1...v1.2.0

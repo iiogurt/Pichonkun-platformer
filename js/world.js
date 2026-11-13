@@ -636,8 +636,10 @@ class Player {
     if (input.right) move += 1;
     if (move) {
       this.face = move;
+      // Running never pushes past RUN_SPEED; speed gained from outside (knock-back, ice) fades out.
+      const lim = Math.max(RUN_SPEED, Math.abs(this.vx) * 0.95);
       this.vx += move * accel;
-      if (Math.abs(this.vx) > RUN_SPEED) this.vx = Math.sign(this.vx) * Math.max(RUN_SPEED, Math.abs(this.vx) * 0.95);
+      if (Math.abs(this.vx) > lim) this.vx = Math.sign(this.vx) * lim;
     } else {
       this.vx *= fric;
       if (Math.abs(this.vx) < 0.05) this.vx = 0;

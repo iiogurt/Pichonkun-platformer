@@ -107,11 +107,16 @@ test('clearing a level unlocks the next and saves', async page => {
     T.play(0); GAME.levelComplete(); T.step(100);
     Input.pressed.add('confirm'); T.step(1);
     const asked = GAME.state;                       // first clear of a new game asks for initials
-    for (let i = 0; i < 3; i++) { T.step(12); Input.pressed.add('confirm'); T.step(1); }
+    T.step(12);
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', code: 'KeyZ' }));       // letters are text here, not "jump"
+    'ora 99!!'.split('').forEach(k => window.dispatchEvent(new KeyboardEvent('keydown', { key: k, code: 'X' })));
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace', code: 'Backspace' }));
+    T.step(1); const typing = GAME.state;
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter' })); T.step(1);
     const s = JSON.parse(localStorage.getItem(SAVE_KEY));
-    return { unlocked: s.unlocked, asked, name: s.name, state: GAME.state, level: GAME.world.idx };
+    return { unlocked: s.unlocked, asked, typing, name: s.name, state: GAME.state, level: GAME.world.idx };
   });
-  assert.deepStrictEqual(r, { unlocked: 2, asked: 'name', name: 'AAA', state: 'intro', level: 1 });
+  assert.deepStrictEqual(r, { unlocked: 2, asked: 'name', typing: 'name', name: 'ZORA 99', state: 'intro', level: 1 });
 });
 
 test('final level clear plays the ending and credits', async page => {
@@ -258,6 +263,22 @@ test('hard mode: unlocked by finishing, 2 hearts, tougher enemies, score x1.5', 
   assert.strictEqual(r.pts, 150);
   assert.ok(r.boss > r.nBoss);
   assert.ok(r.ach, 'hard-mode achievement missing');
+});
+
+test('name can be changed from Options and the leaderboard row follows', async page => {
+  const r = await page.evaluate(() => {
+    localStorage.clear(); GAME.save = defaultSave(); GAME.save.name = 'OLD'; GAME.save.hi[0] = { score: 5000, rank: 'B', time: 60 };
+    boardSubmit(GAME.save);
+    Input.down.clear(); GAME.dialog = null; GAME.confirmErase = false; GAME.state = 'title'; GAME.sub = 'options'; GAME.menu = GAME.titleItems().findIndex(i => i.startsWith('NAME'));
+    Input.pressed.add('confirm'); T.step(12); GAME.render();
+    for (let i = 0; i < 3; i++) window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace', code: 'Backspace' }));
+    'newname99'.split('').forEach(k => window.dispatchEvent(new KeyboardEvent('keydown', { key: k, code: 'X' })));
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter' })); T.step(1);
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', code: 'KeyZ' }));
+    const row = JSON.parse(localStorage.getItem(BOARD_KEY)).find(e => e.id === GAME.save.runId);
+    return { state: GAME.state, name: GAME.save.name, row: row && row.name, keysBackToNormal: Input.pressed.has('jump') };
+  });
+  assert.deepStrictEqual(r, { state: 'title', name: 'NEWNAME9', row: 'NEWNAME9', keysBackToNormal: true });
 });
 
 test('audio engine runs every track and sound effect', async page => {
