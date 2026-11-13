@@ -23,6 +23,7 @@ If the browser isn't found automatically, set `CHROME_PATH`.
 | `npm test` | Starts the real game in headless Chrome and plays every level, riddle, puzzle, boss and save |
 | `npm run check` | All of the above (CI runs this) |
 | `npm run screenshots` | Regenerates `docs/screenshots/*.png` from the game canvas |
+| `npm run gif` | Re-records `docs/gameplay.gif` with a scripted bot (needs `ffmpeg`) |
 
 ## Editing levels
 

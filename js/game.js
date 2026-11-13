@@ -3,7 +3,7 @@
 const VIEW_W = 384, VIEW_H = 216, RES = 2;
 const SAVE_KEY = 'pichonkun_save_v1';
 const BOARD_KEY = 'pichonkun_scores_v1';
-const GAME_VERSION = '1.3.0';
+const GAME_VERSION = '1.3.1';
 
 // ================================================================== INPUT
 const Input = (() => {

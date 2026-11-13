@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-11-13
+
+### Changed
+
+- During play, the dialogue box appears at the top of the screen when it would otherwise cover
+  Pichonkun and the character who is talking.
+
+### Documentation
+
+- README: an animated gameplay clip at the top, a retaken dialogue screenshot, title and story
+  screenshots added to the gallery, and the graphics setting described where it now lives (Options).
+- `npm run gif` re-records the clip with a scripted bot.
+
 ## [1.3.0] - 2026-11-13
 
 ### Added
@@ -124,7 +137,8 @@ First public release. Play it at https://iiogurt.github.io/Pichonkun-platformer/
 - Tooling: ESLint, a level-data validator, a headless Chrome smoke test and a screenshot generator.
 - GitHub Actions for CI, GitHub Pages deployment and tagged releases.
 
-[Unreleased]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.3.1...HEAD
+[1.3.1]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.1.1...v1.2.0
 [1.1.1]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.1.0...v1.1.1

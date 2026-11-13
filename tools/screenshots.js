@@ -20,7 +20,7 @@ const SHOTS = {
   'level-08-compressor-core': () => { T.play(7); T.bot(300, { god: true }); },
   'level-09-factory': () => { T.play(8); T.bot(230, { god: true }); },
   'riddle': () => { T.play(0); const w = GAME.world; const t = w.objects.find(o => o.type === 'terminal'); w.player.x = t.x - 14; w.player.y = t.y - 2; w.snapCamera(); T.step(5); GAME.openRiddle(LEVELS[0].riddles[0], 0); T.step(12); },
-  'dialog': () => { T.play(4); T.step(30, () => {}); GAME.say(LEVELS[4].npcs[0]); T.step(200); },
+  'dialog': () => { T.play(0); T.step(40, i => { if (i < 14) Input.down.add('right'); else Input.down.clear(); }); GAME.say(LEVELS[0].npcs[0].slice(2)); T.step(200); },
   'boss-smogmaw': () => {
     T.play(9); const w = GAME.world; w.player.x = w.boss.x - 120; w.player.y = 150; w.player.face = 1; w.snapCamera();
     T.step(20, () => { GAME.dialog = null; });

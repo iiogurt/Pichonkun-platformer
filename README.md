@@ -13,7 +13,7 @@
 ![HTML5 Canvas](https://img.shields.io/badge/HTML5-canvas-e34f26?logo=html5&logoColor=white)
 ![Vanilla JS](https://img.shields.io/badge/JavaScript-no%20dependencies-f7df1e?logo=javascript&logoColor=black)
 
-<img src="docs/screenshots/title.png" alt="Title screen" width="720">
+<img src="docs/gameplay.gif" alt="Gameplay: running and cleaning up enemies, finding a secret room, a boss fight and the score tally" width="720">
 
 </div>
 
@@ -48,6 +48,8 @@ air clean. His journey goes through meadows and smoggy streets, into the air con
 
 | | |
 |---|---|
+| ![Title screen](docs/screenshots/title.png) | ![The story begins](docs/screenshots/story.png) |
+| **Title screen** | **The story begins** |
 | ![Morning Meadow](docs/screenshots/level-01-meadow.png) | ![Pollen Peaks](docs/screenshots/level-02-pollen-peaks.png) |
 | **1 · Morning Meadow** | **2 · Pollen Peaks** |
 | ![Smog Street](docs/screenshots/level-03-smog-street.png) | ![The Intake Duct](docs/screenshots/level-04-intake-duct.png) |
@@ -91,7 +93,7 @@ unzip it and open `index.html`.
 | Pause | Esc / P |
 | Music on/off | M |
 
-If the game runs slowly, set **Graphics** to **FAST** in the title or pause menu. The game also does this by itself on slow devices.
+If the game runs slowly, set **Graphics** to **FAST** under **Options** on the title screen, or in the pause menu. The game also does this by itself on slow devices.
 
 On phones and tablets, on-screen buttons appear automatically.
 
@@ -177,6 +179,7 @@ npm install
 npm run serve        # play at http://localhost:8000
 npm run check        # lint + level validation + headless smoke test
 npm run screenshots  # regenerate docs/screenshots
+npm run gif          # re-record docs/gameplay.gif (needs ffmpeg)
 ```
 
 ```

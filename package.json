@@ -1,12 +1,13 @@
 {
   "name": "pichonkun-platformer",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "description": "Pichonkun and the Clean Air Adventure - a 10-level pixel-art platformer for the browser",
   "scripts": {
     "lint": "eslint .",
     "validate": "node tools/validate-levels.js",
     "test": "node tools/smoke-test.js",
     "screenshots": "node tools/screenshots.js",
+    "gif": "node tools/record-gif.js",
     "check": "npm run lint && npm run validate && npm test",
     "serve": "python3 -m http.server 8000"
   },
