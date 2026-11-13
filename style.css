@@ -23,3 +23,7 @@ canvas {
 #touch .pad.right { right: 12px; }
 #touch .pad.right .a { width: 76px; height: 76px; margin-bottom: 24px; }
 #touch .pause { position: absolute; top: 10px; right: 10px; width: 44px !important; height: 44px !important; }
+#loading {
+  position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+  color: #5fd4ff; font: bold 18px monospace; letter-spacing: 3px; pointer-events: none;
+}

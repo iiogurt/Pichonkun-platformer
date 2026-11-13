@@ -44,7 +44,7 @@ const PORTRAITS = {
   frosty: { name: 'FROSTY', color: '#d7f6ff', spr: 'npc_frosty' },
   granny: { name: 'GRANNY CLOUD', color: '#ffffff', spr: 'npc_granny' },
   bee: { name: 'BUZZBY', color: '#ffd23f', spr: 'npc_bee' },
-  smogmaw: { name: 'SMOGMAW', color: '#ff7a6a', spr: 'smog' },
+  smogmaw: { name: 'SMOGMAW', color: '#ff7a6a', spr: 'boss_smogmaw' },
   sign: { name: 'SIGN', color: '#e0c090', spr: 'sign' },
   terminal: { name: 'AIR-Q TERMINAL', color: '#7cff4f', spr: 'terminal' },
   boss: { name: '', color: '#ff7a6a' },
