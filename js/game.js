@@ -2,7 +2,7 @@
 'use strict';
 const VIEW_W = 384, VIEW_H = 216, RES = 2;
 const SAVE_KEY = 'pichonkun_save_v1';
-const GAME_VERSION = '1.1.0';
+const GAME_VERSION = '1.1.1';
 
 // ================================================================== INPUT
 const Input = (() => {

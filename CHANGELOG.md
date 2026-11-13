@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-11-13
+
+### Fixed
+
+- Pichonkun's face looked distorted: the eyes and mouth were warped by the
+  squash-and-stretch animation and clipped by the edge of the head. They are
+  now hand-placed pixel shapes (round ring eyes, cat mouth) that move as one
+  piece, on a slightly wider, rounder head closer to the original design.
+- Raised arms no longer cover the face in the jump, fall, hurt and happy poses.
+
 ## [1.1.0] - 2026-11-12
 
 A complete graphics overhaul. Gameplay, levels and saves are unchanged.
@@ -67,6 +77,7 @@ First public release. Play it at https://iiogurt.github.io/Pichonkun-platformer/
 - Tooling: ESLint, a level-data validator, a headless Chrome smoke test and a screenshot generator.
 - GitHub Actions for CI, GitHub Pages deployment and tagged releases.
 
-[Unreleased]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/iiogurt/Pichonkun-platformer/releases/tag/v1.0.0

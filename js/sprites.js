@@ -84,7 +84,7 @@ const OUTL = { navy: [13, 27, 94], dark: [16, 12, 26] };
     const W = 50, H = 56, base = 53, cx = 24;
     const sq = o.sq || 0, bob = o.bob || 0, lean = o.lean || 0, tipLen = o.tip || 20.5;
     const sxs = 1 + sq * 0.13, sys = 1 - sq * 0.13;
-    const R = 13;
+    const R = 13, WIDE = 1.1;
     const hy = base - 13 - R * sys + bob + (o.headY || 0); // head centre
     const legs = o.legs || [[0, 0], [0, 0]];
     const arms = o.arms || [0.25, -0.25];
@@ -101,29 +101,12 @@ const OUTL = { navy: [13, 27, 94], dark: [16, 12, 26] };
 
     // head: a round droplet with a small soft tip (smooth union), in squash space
     const hshape = (X, Y) => S.sunion(S.circle(X, Y, 0, 0, R), S.cone(X, Y, 0, -7.5, 7, lean, -tipLen, 1.1), 3.5);
-    const hsdf = (x, y) => hshape((x - cx) / sxs, (y - hy) / sys) * Math.min(sxs, sys);
+    const hsdf = (x, y) => hshape((x - cx) / (sxs * WIDE), (y - hy) / sys) * Math.min(sxs, sys);
     const head = part(W, H, hsdf, RAMPS.water, (x, y, d) => {
-      const X = (x - cx) / sxs, Y = (y - hy) / sys;
-      // ---- face patch (lower right)
+      const X = (x - cx) / (sxs * WIDE), Y = (y - hy) / sys;
+      // ---- face patch (lower right); features are stamped on afterwards
       const fd = S.ellipse(X, Y, 5.8, 4.8, 10.4, 8.4);
       if (fd < 0) {
-        for (const ex of [3.2, 10.2]) {
-          const dx = X - ex, dy = Y - 2.6, de = Math.hypot(dx, dy);
-          if (eyes === 'open' && de < 2.7) return de > 1.5 ? N : [255, 255, 255];
-          if (eyes === 'wide' && de < 3.1) return de > 1.8 ? N : [255, 255, 255];
-          if (eyes === 'blink' && Math.abs(dy - 0.4) < 0.6 && Math.abs(dx) < 2.6) return N;
-          if (eyes === 'happy' && Math.abs(de - 2.1) < 0.62 && dy < 0.2) return N;
-          if (eyes === 'hurt' && Math.abs(Math.abs(dx) - Math.abs(dy)) < 0.7 && Math.max(Math.abs(dx), Math.abs(dy)) < 2.6) return N;
-        }
-        if (o.mouth === 'open') {
-          const md = S.ellipse(X, Y, 6.7, 8.4, 1.9, 1.7);
-          if (md < 0) return md > -0.75 ? N : [255, 150, 170];
-        } else {
-          // cat mouth "w": two little bowls under the eyes' midpoint
-          const mx = Math.abs(X - 6.7);
-          if (mx < 2.4 && Math.abs(Y - (7.4 + 1.1 * Math.sin(mx / 2.4 * Math.PI))) < 0.55) return N;
-        }
-        if (S.ellipse(X, Y, 0.4, 6.4, 1.7, 1.0) < 0 || S.ellipse(X, Y, 12.6, 6.0, 1.2, 1.0) < 0) return [255, 204, 218]; // blush
         if (fd > -1.5 && Y > 6.5) return [208, 230, 246];
         if (d > -2.2 && Y > 5) return [226, 240, 250];
         return [255, 255, 255];
@@ -136,9 +119,29 @@ const OUTL = { navy: [13, 27, 94], dark: [16, 12, 26] };
       const ang = Math.atan2(Y, X);
       if (Y > -11 && d < -2.4 && d > -5.4 && ang > -1.3 && ang < -0.3) t = 0.84;          // glossy streak
       if (Y > -11 && d < -3 && d > -4.6 && ang > -1.05 && ang < -0.7) t = 1;
-      if (S.circle(X, Y, -5.5, -3.5, 1.2) < 0) t += 0.17;                                // a bubble
       return clamp(t);
     }, N, 0);
+
+    // ---- face: hand-placed pixel stamps, moved as one rigid unit so squash
+    // and stretch never deform the eyes or mouth
+    const fg = head.getContext('2d');
+    const fx = Math.round(cx - 1 + (sxs - 1) * 5), fy = Math.round(hy + 3 * sys);
+    const stamp = (rows, x, y) => rows.forEach((r, j) => [...r].forEach((ch, i) => {
+      if (ch === '.') return;
+      fg.fillStyle = ch === '#' ? GFX.css(N) : ch === 'p' ? '#ff96aa' : '#ffffff';
+      fg.fillRect(x + i, y + j, 1, 1);
+    }));
+    const EYES = {
+      open: ['.###.', '#www#', '#www#', '#www#', '.###.'],
+      wide: ['.###.', '#www#', '#www#', '#www#', '#www#', '.###.'],
+      blink: ['.....', '.....', '#####', '.....', '.....'],
+      happy: ['.....', '.###.', '#...#', '.....', '.....'],
+      hurt: ['#...#', '.#.#.', '..#..', '.#.#.', '#...#'],
+    }[eyes];
+    const ey = fy - (eyes === 'wide' ? 3 : 2);
+    stamp(EYES, fx + 1, ey); stamp(EYES, fx + 8, ey);
+    if (o.mouth === 'open') stamp(['.###.', '#ppp#', '#ppp#', '.###.'], fx + 5, fy + 4);
+    else stamp(['#..#..#', '.##.##.'], fx + 4, fy + 4);
 
     return mkSpr(stack(mkArm(-1, arms[1]), mkLeg(-1, legs[1]), mkLeg(1, legs[0]), body, head, mkArm(1, arms[0])), 1.5);
   }
@@ -154,11 +157,11 @@ const OUTL = { navy: [13, 27, 94], dark: [16, 12, 26] };
       const leg = (ph) => [Math.cos(ph) * 4.6, Math.max(0, Math.sin(ph)) * 3.6];
       return pichon({ legs: [leg(p), leg(p + Math.PI)], arms: [Math.cos(p + Math.PI) * 1.0, Math.cos(p) * 1.0], bob: -Math.abs(Math.sin(p)) * 1.6, lean: -3 - Math.sin(p * 2) * 0.8, sq: Math.sin(p * 2) * 0.1 });
     });
-    SPR.pichon_jump = pichon({ sq: -0.42, legs: [[-1.5, 1.2], [-3, 0.2]], arms: [2.3, -2.4], lean: -1.5, tip: 21, eyes: 'open' });
-    SPR.pichon_fall = pichon({ sq: -0.12, legs: [[2.4, 1.5], [-2.6, 1.2]], arms: [2.75, -2.75], lean: 1, tip: 22.5, eyes: 'wide' });
+    SPR.pichon_jump = pichon({ sq: -0.42, legs: [[-1.5, 1.2], [-3, 0.2]], arms: [1.75, -1.8], lean: -1.5, tip: 21, eyes: 'open' });
+    SPR.pichon_fall = pichon({ sq: -0.12, legs: [[2.4, 1.5], [-2.6, 1.2]], arms: [1.95, -1.95], lean: 1, tip: 22.5, eyes: 'wide' });
     SPR.pichon_land = pichon({ sq: 0.75, legs: [[2.6, 0], [-2.6, 0]], arms: [1.3, -1.3], tip: 17, headY: 1 });
-    SPR.pichon_hurt = pichon({ sq: 0.2, legs: [[2, 2], [-3, 1]], arms: [2.6, -2.2], eyes: 'hurt', mouth: 'open', lean: -3 });
-    SPR.pichon_happy = pichon({ sq: -0.25, legs: [[1.5, 0], [-1.5, 0]], arms: [2.8, -2.8], eyes: 'happy', mouth: 'open' });
+    SPR.pichon_hurt = pichon({ sq: 0.2, legs: [[2, 2], [-3, 1]], arms: [1.9, -1.7], eyes: 'hurt', mouth: 'open', lean: -3 });
+    SPR.pichon_happy = pichon({ sq: -0.25, legs: [[1.5, 0], [-1.5, 0]], arms: [2.0, -2.0], eyes: 'happy', mouth: 'open' });
     SPR.pichon_shoot = pichon({ arms: [1.55, -0.5], sq: 0.05, lean: -1 });
     SPR.pichon_white = whiteVersion(SPR.pichon_idle[0]);
   }
