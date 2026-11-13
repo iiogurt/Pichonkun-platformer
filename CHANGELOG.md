@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-11-13
+
+### Added
+
+- **18 achievements** with a pop-up when one is earned and an Achievements screen on the title menu.
+- **Reward skins**: five new colours for Pichonkun (mint, rose, violet, gold, ember), unlocked by
+  finding crystals, earning achievements and finishing the game. Choose one under Options.
+- **Hard mode**, unlocked by finishing the game and chosen when starting a New Game: 2 hearts,
+  enemies take one more hit, bosses have 50% more health, enemies and bosses act faster, and all
+  points are multiplied by 1.5. Hard runs are marked on the leaderboard.
+- Achievements, crystals found and unlocked skins are kept across New Game.
+
+### Changed
+
+- The title menu is shorter: music, sound, graphics and skin moved into an **Options** submenu.
+- Earlier progress counts: a finished game unlocks hard mode and the violet skin, and crystals
+  already found count toward the crystal rewards.
+
 ## [1.2.0] - 2026-11-13
 
 Reasons to play again: a score, ranks, hidden treasure and a leaderboard.
@@ -106,7 +124,8 @@ First public release. Play it at https://iiogurt.github.io/Pichonkun-platformer/
 - Tooling: ESLint, a level-data validator, a headless Chrome smoke test and a screenshot generator.
 - GitHub Actions for CI, GitHub Pages deployment and tagged releases.
 
-[Unreleased]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.1.1...v1.2.0
 [1.1.1]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.0.0...v1.1.0

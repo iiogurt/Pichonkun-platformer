@@ -188,6 +188,7 @@ const AUDIO = (() => {
     gate:   (t) => { for (let i = 0; i < 6; i++) noise(t + i * 0.05, 0.05, 0.08, sfxGain, 400, 2000); tone('square', 150, t, 0.35, 0.08, sfxGain, 600); },
     blip:   (t) => tone('square', 1200 + Math.random() * 200, t, 0.025, 0.035, sfxGain),
     select: (t) => tone('square', 880, t, 0.05, 0.08, sfxGain),
+    award:  (t) => { [523, 659, 784, 1047, 1319, 1568].forEach((f, i) => tone('square', f, t + i * 0.07, 0.16, 0.08, sfxGain)); tone('triangle', 262, t, 0.6, 0.14, sfxGain); },
     crystal: (t) => { [784, 988, 1175, 1568, 1976, 2349].forEach((f, i) => tone('square', f, t + i * 0.055, 0.14, 0.08, sfxGain)); tone('triangle', 392, t, 0.5, 0.12, sfxGain); },
     secret: (t) => { [392, 494, 587, 740, 587, 784].forEach((f, i) => tone('triangle', f, t + i * 0.07, 0.16, 0.16, sfxGain)); },
     combo:  (t) => { tone('square', 1319, t + 0.05, 0.05, 0.06, sfxGain); tone('square', 1760, t + 0.1, 0.08, 0.06, sfxGain); },

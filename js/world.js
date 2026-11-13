@@ -48,6 +48,7 @@ class World {
     this.dropsTotal = 0; this.drops = 0;
     this.crystalTotal = 0; this.secrets = []; this.secretOf = new Map();
     this.combo = 0; this.comboT = 0; this.ghost = false;
+    this.hard = !!game.save.hard;
     this.boss = null; this.bossActive = false; this.bossDefeated = false;
     this.t = 0; this.shake = 0; this.hitstop = 0;
     this.exit = null;
@@ -129,9 +130,12 @@ class World {
         case 'w': this.winds.push({ x: px, y: (y - 7) * TILE, w: 16, h: 10 * TILE }); clear(); break;
         case 'M': this.platforms.push({ x: px, y: py + 4, w: 48, h: 8, ox: px, oy: py + 4, axis: 'x', range: 48, t: x * 7, dx: 0, dy: 0 }); clear(); break;
         case 'V': this.platforms.push({ x: px, y: py + 4, w: 48, h: 8, ox: px, oy: py + 4, axis: 'y', range: 48, t: x * 7, dx: 0, dy: 0 }); clear(); break;
-        case 'B': this.boss = makeBoss(this, this.def.boss, px, py); clear(); break;
+        case 'B':
+          this.boss = makeBoss(this, this.def.boss, px, py);
+          if (this.hard) this.boss.hp = this.boss.maxHp = Math.ceil(this.boss.maxHp * HARD.bossHp);
+          clear(); break;
         default:
-          if (ENEMY_DEFS[c]) { const e = makeEnemy(c, px, py); e.id = enemyId++; this.enemies.push(e); clear(); }
+          if (ENEMY_DEFS[c]) { const e = makeEnemy(c, px, py); e.id = enemyId++; if (this.hard) e.hp += HARD.enemyHp; this.enemies.push(e); clear(); }
       }
     }
     // gate ownership: each gate column belongs to the closest riddle terminal on its left
@@ -271,8 +275,10 @@ class World {
     if (this.comboT > 0 && --this.comboT === 0) this.combo = 0;
     this.ghost = true; this.player.update(input); this.ghost = false;
     this.checkSecrets();
-    for (const e of this.enemies) if (!e.dead && Math.abs(e.x - this.player.x) < VIEW_W * 1.2) updateEnemy(this, e);
-    if (this.boss && !this.boss.dead) updateBoss(this, this.boss);
+    // hard mode: enemies and bosses get an extra step every few frames, so they move and shoot faster
+    const eN = this.hard && this.t % HARD.enemyTick === 0 ? 2 : 1, bN = this.hard && this.t % HARD.bossTick === 0 ? 2 : 1;
+    for (const e of this.enemies) for (let k = 0; k < eN; k++) if (!e.dead && Math.abs(e.x - this.player.x) < VIEW_W * 1.2) updateEnemy(this, e);
+    for (let k = 0; k < bN; k++) if (this.boss && !this.boss.dead) updateBoss(this, this.boss);
     this.updateShots();
     this.updateBullets();
     this.updateObjects();
@@ -341,15 +347,15 @@ class World {
             AUDIO.sfx('crystal'); this.hitstop = 4;
             this.burst(o.x + 5, o.y + 6, '#ffe060', 22, 2.6); this.burst(o.x + 5, o.y + 6, '#ffffff', 10, 1.6);
             this.ring(o.x + 5, o.y + 6, '#ffe060', 26);
-            this.game.addScore(SCORE.crystal);
-            this.float(o.x - 14, o.y - 8, `CRYSTAL! +${SCORE.crystal}`, '#ffe060');
+            this.float(o.x - 14, o.y - 8, `CRYSTAL! +${this.game.addScore(SCORE.crystal)}`, '#ffe060');
+            this.game.onCrystal(this.idx, o.id);
             this.game.saveGame('CRYSTAL FOUND');
           }
           break;
         case 'heart':
           if (overlap(p, o)) {
             o.dead = true; AUDIO.sfx('heart');
-            if (p.hp >= p.maxHp) { this.game.addScore(SCORE.spareHeart); this.float(o.x - 4, o.y, `+${SCORE.spareHeart}`, '#ffe060'); }
+            if (p.hp >= p.maxHp) this.float(o.x - 4, o.y, `+${this.game.addScore(SCORE.spareHeart)}`, '#ffe060');
             else { p.hp++; this.float(o.x, o.y, '+1', '#ff7a9a'); } this.burst(o.x + 4, o.y + 4, '#ff5a7a', 8);
           }
           break;
@@ -430,8 +436,8 @@ class World {
     }
     if (n === def.order.length) {
       this.openDoors(false);
-      const pts = SCORE.lever[Math.min(SCORE.lever.length - 1, this.game.run.leverMiss)];
-      this.game.addScore(pts); this.float(this.player.x - 6, this.player.y - 30, `+${pts}`, '#ffe060');
+      const pts = this.game.addScore(SCORE.lever[Math.min(SCORE.lever.length - 1, this.game.run.leverMiss)]);
+      this.float(this.player.x - 6, this.player.y - 30, `+${pts}`, '#ffe060');
       this.game.saveGame('PUZZLE SOLVED');
     }
   }
@@ -473,8 +479,8 @@ class World {
         run.kills.push(e.id);
         this.combo = this.comboT > 0 ? this.combo + 1 : 1; this.comboT = SCORE.comboFrames;
         const mult = Math.min(SCORE.comboMax, this.combo);
-        const pts = ENEMY_DEFS[e.ch].hp * SCORE.killPerHp * mult + (dir === 0 ? SCORE.stomp : 0);
-        this.game.addScore(pts);
+        const pts = this.game.addScore(ENEMY_DEFS[e.ch].hp * SCORE.killPerHp * mult + (dir === 0 ? SCORE.stomp : 0));
+        this.game.onKill(this.combo);
         run.bestCombo = Math.max(run.bestCombo, this.combo);
         this.float(e.x - 4, e.y - 4, mult > 1 ? `+${pts} X${mult}` : `+${pts}`, mult > 1 ? '#ffe060' : '#b5ecfc');
         if (mult > 1) AUDIO.sfx('combo');
@@ -494,7 +500,10 @@ class World {
     const run = this.game.run, dealt = b.maxHp - Math.max(0, b.hp);
     if (dealt > run.bossDmg) { this.game.addScore((dealt - run.bossDmg) * SCORE.bossHit); run.bossDmg = dealt; }
     if (b.hp <= 0) {
-      if (!run.boss) { run.boss = true; this.game.addScore(SCORE.boss); this.float(b.x + b.w / 2 - 14, b.y - 8, `+${SCORE.boss}`, '#ffe060'); }
+      if (!run.boss) {
+        run.boss = true; this.float(b.x + b.w / 2 - 14, b.y - 8, `+${this.game.addScore(SCORE.boss)}`, '#ffe060');
+        if (run.bossHurt === 0) this.game.award('bossFlawless');
+      }
       b.dead = true; this.bossDefeated = true;
       AUDIO.sfx('bossDie'); this.shake = 40;
       for (let i = 0; i < 6; i++) { this.burst(b.x + Math.random() * b.w, b.y + Math.random() * b.h, i % 2 ? '#b5ecfc' : '#888', 20, 3); this.ring(b.x + Math.random() * b.w, b.y + Math.random() * b.h, '#b5ecfc', 30 + i * 8); }
@@ -535,9 +544,9 @@ class World {
       for (const o of this.objects) if (o.type === 'crystal' && this.secretAt(o) === sc) o.hidden = false;
       if (!this.game.run.secrets.includes(sc.id)) {
         this.game.run.secrets.push(sc.id);
-        this.game.addScore(SCORE.secret);
         AUDIO.sfx('secret');
-        this.float(p.x - 22, p.y - 14, `SECRET! +${SCORE.secret}`, '#ffe060');
+        this.float(p.x - 22, p.y - 14, `SECRET! +${this.game.addScore(SCORE.secret)}`, '#ffe060');
+        this.game.award('secret1');
         for (const [sx, sy] of sc.tiles) this.burst(sx * TILE + 8, sy * TILE + 8, '#ffe060', 3, 1.2);
       }
     }
@@ -600,7 +609,7 @@ class Player {
     this.world = world;
     this.x = x; this.y = y; this.w = 10; this.h = 18;
     this.vx = 0; this.vy = 0; this.face = 1;
-    this.maxHp = 3; this.hp = 3;
+    this.maxHp = world.hard ? HARD.hearts : 3; this.hp = this.maxHp;
     this.ground = false; this.coyote = 0; this.jumpBuf = 0; this.jumpHeld = false;
     this.usedDouble = false; this.canDouble = !!world.game.save.vapor || world.idx >= 3;
     this.inv = 0; this.shootCd = 0; this.anim = 0; this.landT = 0;
@@ -742,6 +751,7 @@ class Player {
     if (this.inv > 0 || this.dead) return;
     this.hp--;
     this.world.game.stats.hits++; this.world.game.run.hits++;
+    if (this.world.bossActive) this.world.game.run.bossHurt++;
     this.inv = 80;
     this.vx = dir * 2.5; this.vy = -4;
     this.world.shake = 8;
@@ -753,6 +763,7 @@ class Player {
     if (this.dead) return;
     if (this.inv <= 0) {
       this.hp--; this.world.game.stats.hits++; this.world.game.run.hits++;
+      if (this.world.bossActive) this.world.game.run.bossHurt++;
       AUDIO.sfx('hurt');
     }
     this.world.burst(this.x + 5, this.y + 8, '#5fd4ff', 14, 2);

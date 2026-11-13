@@ -201,11 +201,70 @@ test('level clear tallies a rank, stores the best score and updates the leaderbo
   assert.strictEqual(r.state, 'board');
 });
 
+test('achievements unlock once, survive New Game and unlock reward skins', async page => {
+  const r = await page.evaluate(() => {
+    localStorage.clear(); GAME.save = defaultSave(); GAME.meta = defaultMeta(); GAME.toasts = [];
+    T.play(0);
+    const c = GAME.world.objects.find(o => o.type === 'crystal' && !o.hidden);
+    GAME.world.player.x = c.x; GAME.world.player.y = c.y; T.step(4);
+    const first = Object.keys(GAME.meta.ach), toasts = GAME.toasts.length;
+    GAME.award('crystal1');
+    const noRepeat = GAME.toasts.length === toasts;
+    GAME.render();
+    // 10 crystals found over time -> MINT skin
+    GAME.meta.cry = { 0: [0, 1, 2], 1: [0, 1, 2], 2: [0, 1, 2] }; GAME.onCrystal(3, 0);
+    const skins = GAME.meta.skins.slice();
+    GAME.meta.skin = 'mint'; GAME.applySkin(); const mint = SPR.pichon_idle[0];
+    GAME.meta.skin = 'blue'; GAME.applySkin(); const blue = SPR.pichon_idle[0];
+    GAME.newGame(false); GAME.dialog = null;
+    const stored = JSON.parse(localStorage.getItem(META_KEY));
+    GAME.state = 'awards'; GAME.boardT = 0; GAME.render();
+    return { first, noRepeat, skins, differs: mint !== blue, kept: !!stored.ach.crystal1 && !!GAME.meta.ach.crystal1, ids: ACHIEVEMENTS.map(a => a[0]) };
+  });
+  assert.ok(r.first.includes('crystal1'));
+  assert.ok(r.noRepeat, 'achievement was announced twice');
+  assert.ok(r.skins.includes('mint'), 'mint skin not unlocked at 10 crystals');
+  assert.ok(r.differs, 'skin did not change the sprites');
+  assert.ok(r.kept, 'achievement lost on New Game');
+  assert.strictEqual(new Set(r.ids).size, r.ids.length);
+});
+
+test('hard mode: unlocked by finishing, 2 hearts, tougher enemies, score x1.5', async page => {
+  const r = await page.evaluate(() => {
+    localStorage.clear(); GAME.save = defaultSave(); GAME.meta = defaultMeta(); GAME.toasts = [];
+    GAME.state = 'title'; GAME.sub = null; GAME.menu = 0;
+    const press = () => { Input.pressed.add('confirm'); T.step(1); };
+    press();                                   // NEW GAME on a fresh, unfinished game: straight into the story
+    const lockedGoesToStory = GAME.state === 'story'; GAME.dialog = null;
+    T.play(0); const nHp = GAME.world.enemies[0].hp, nBoss = (T.play(4), GAME.world.boss.maxHp);
+    T.play(9); GAME.levelComplete();           // finishing the game unlocks hard mode
+    const unlocked = GAME.meta.finished;
+    GAME.dialog = null; GAME.state = 'title'; GAME.sub = null; GAME.confirmErase = false;
+    GAME.menu = GAME.titleItems().indexOf('NEW GAME'); press(); press();   // confirm erase -> mode menu
+    const sub = GAME.sub;
+    GAME.menu = GAME.titleItems().indexOf('HARD'); press(); GAME.dialog = null;
+    T.play(0);
+    const w = GAME.world, hp = w.player.maxHp, eHp = w.enemies[0].hp;
+    const pts = GAME.addScore(100);
+    T.play(4); const boss = GAME.world.boss.maxHp;
+    T.play(0); GAME.levelComplete(); GAME.render();
+    return { lockedGoesToStory, unlocked, sub, hard: GAME.save.hard, hp, eHp, nHp, pts, boss, nBoss, ach: !!GAME.meta.ach.hard1, row: JSON.parse(localStorage.getItem(BOARD_KEY) || '[]').some(e => e.hard) };
+  });
+  assert.ok(r.lockedGoesToStory && r.unlocked);
+  assert.strictEqual(r.sub, 'mode');
+  assert.ok(r.hard, 'save is not in hard mode');
+  assert.strictEqual(r.hp, 2);
+  assert.strictEqual(r.eHp, r.nHp + 1);
+  assert.strictEqual(r.pts, 150);
+  assert.ok(r.boss > r.nBoss);
+  assert.ok(r.ach, 'hard-mode achievement missing');
+});
+
 test('audio engine runs every track and sound effect', async page => {
   await page.evaluate(() => {
     AUDIO.init();
     ['title', 'meadow', 'city', 'duct', 'ice', 'drain', 'factory', 'boss', 'sky', 'victory', 'ending'].forEach(t => AUDIO.playMusic(t));
-    ['jump', 'shoot', 'stomp', 'kill', 'drop', 'hurt', 'checkpoint', 'right', 'wrong', 'gate', 'bossDie', 'powerup', 'save', 'crystal', 'secret', 'combo'].forEach(s => AUDIO.sfx(s));
+    ['jump', 'shoot', 'stomp', 'kill', 'drop', 'hurt', 'checkpoint', 'right', 'wrong', 'gate', 'bossDie', 'powerup', 'save', 'crystal', 'secret', 'combo', 'award'].forEach(s => AUDIO.sfx(s));
     AUDIO.stopMusic();
   });
 });

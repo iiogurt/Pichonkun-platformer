@@ -57,11 +57,13 @@
       case 'clear': this.drawWorld(); this.drawClear(); break;
       case 'name': this.drawWorld(); this.drawClear(); this.drawName(); break;
       case 'board': this.drawBoard(); break;
+      case 'awards': this.drawAwards(); break;
       case 'ending': this.drawEnding(); break;
       case 'credits': this.drawCredits(); break;
     }
     if (this.dialog) this.drawDialog();
     if (this.saveFlash > 0) this.drawSaveIcon();
+    if (this.toasts.length) this.drawToast();
   };
 
   // ================================================================ WORLD
@@ -437,6 +439,8 @@
     for (let i = 0; i < w.crystalTotal; i++) drawSpr(ctx, i < this.run.crystals.length ? SPR.crystalIcon : SPR.crystalEmpty, 88 + i * 8, 7.5);
     if (p.canDouble) drawSpr(ctx, SPR.power[0], 116, 8.5, false, 0.5);
 
+    if (w.hard) { this.pill(4, 21, 30, 12); FONT.draw(ctx, 'HARD', 8, 23, '#ff7a6a', { shadow: '#3a0606' }); }
+
     // score + combo meter
     const sc = String(this.run.score).padStart(6, '0'), sw = FONT.measure(sc) + 12, sx = Math.round(VIEW_W / 2 - sw / 2) + 14;
     this.pill(sx, 4, sw, 15);
@@ -661,6 +665,33 @@
     FONT.draw(ctx, 'UP/DOWN: LETTER   Z: OK   X: BACK', VIEW_W / 2, 150, '#b5ecfc', { align: 'center', shadow: '#061040' });
   };
 
+  // achievement / reward banner, slides in under the HUD
+  G.drawToast = function () {
+    const ctx = this.ctx, o = this.toasts[0];
+    const k = Math.min(1, o.t / 12, (210 - o.t) / 12), bw = Math.max(FONT.measure(o.text), FONT.measure(o.title)) + 34;
+    const x = Math.round(VIEW_W / 2 - bw / 2), y = Math.round(-30 + k * 54);
+    this.panel(x, y, bw, 26);
+    drawSpr(ctx, SPR.crystalIcon, x + 7, y + 9 + Math.sin(this.t * 0.2));
+    FONT.draw(ctx, o.title, x + 22, y + 5, '#ffe680', { shadow: '#061040' });
+    FONT.draw(ctx, o.text, x + 22, y + 15, '#ffffff', { shadow: '#061040' });
+  };
+
+  G.drawAwards = function () {
+    const ctx = this.ctx, m = this.meta, n = ACHIEVEMENTS.length, rows = Math.ceil(n / 2);
+    this.drawScene(0.7);
+    FONT.draw(ctx, 'ACHIEVEMENTS', VIEW_W / 2, 6, '#ffe680', { align: 'center', scale: 2, shadow: '#5a2a00' });
+    FONT.draw(ctx, `${achCount(m)}/${n}`, VIEW_W - 10, 12, '#ffffff', { align: 'right', shadow: '#000' });
+    this.panel(6, 28, VIEW_W - 12, rows * 18 + 8);
+    ACHIEVEMENTS.forEach(([id, name, how], i) => {
+      const x = 12 + (i >= rows ? 186 : 0), y = 33 + (i % rows) * 18, got = !!m.ach[id];
+      drawSpr(ctx, got ? SPR.crystalIcon : SPR.crystalEmpty, x, y + 3);
+      FONT.draw(ctx, name, x + 10, y, got ? '#ffe680' : '#8a98c8', { shadow: '#061040' });
+      FONT.draw(ctx, how, x + 10, y + 9, got ? '#b5ecfc' : '#5a68a0');
+    });
+    const next = SKINS.find(s => !m.skins.includes(s[0]));
+    FONT.draw(ctx, next ? `NEXT REWARD: ${next[1]} PICHONKUN - ${next[2]}` : 'ALL REWARDS UNLOCKED!', VIEW_W / 2, 203, '#7cff4f', { align: 'center', shadow: '#000' });
+  };
+
   G.drawBoard = function () {
     const ctx = this.ctx, b = this.board || [];
     this.drawScene(0.6);
@@ -675,7 +706,7 @@
       FONT.draw(ctx, String(i + 1).padStart(2, ' ') + '.', 84, y, i === 0 ? '#ffe060' : col, { shadow: '#061040' });
       FONT.draw(ctx, e ? e.name : '---', 114, y, col, { shadow: '#061040' });
       FONT.draw(ctx, e ? String(e.score) : '-', 210, y, col, { align: 'right', shadow: '#061040' });
-      if (e) FONT.draw(ctx, e.npc ? 'RESIDENT' : `${e.cleared}/${LEVELS.length}`, 232, y, e.npc ? '#6a78b0' : col, { shadow: '#061040' });
+      if (e) FONT.draw(ctx, e.npc ? 'RESIDENT' : `${e.cleared}/${LEVELS.length}${e.hard ? ' HARD' : ''}`, 232, y, e.npc ? '#6a78b0' : e.hard ? '#ff9a8a' : col, { shadow: '#061040' });
       if (i === 0 && e) drawSpr(ctx, SPR.crystalIcon, 74, y - 1);
     }
     const mine = totalScore(this.save);
@@ -777,16 +808,25 @@
     const mx = 232, my = 96, mh = items.length * 14 + 10;
     this.panel(mx - 12, my - 8, 148, mh, 0.9);
     this.drawMenu(items, this.menu, mx, my, 138);
+    if (this.sub === 'mode') {
+      this.panel(mx - 12, my + mh - 2, 148, 34, 0.9);
+      const hard = items[this.menu] === 'HARD';
+      FONT.wrap(hard ? '2 HEARTS, TOUGHER AND FASTER ENEMIES. SCORE X1.5!' : 'THE ADVENTURE AS YOU KNOW IT.', 22).forEach((l, i) => FONT.draw(ctx, l, mx - 5, my + mh + 3 + i * 9, hard ? '#ff9a8a' : '#b5ecfc', { shadow: '#061040' }));
+    }
+    if (this.sub === 'options') {
+      const sk = SKINS.find(s => !this.meta.skins.includes(s[0]));
+      if (sk) { this.panel(mx - 12, my + mh - 2, 148, 34, 0.9); FONT.wrap(`NEXT SKIN: ${sk[1]} - ${sk[2]}`, 22).forEach((l, i) => FONT.draw(ctx, l, mx - 5, my + mh + 3 + i * 9, '#b5ecfc', { shadow: '#061040' })); }
+    }
     if (this.confirmErase) {
       ctx.fillStyle = 'rgba(2,4,20,0.6)'; ctx.fillRect(0, 0, VIEW_W, VIEW_H);
       this.panel(60, 80, VIEW_W - 120, 52);
       FONT.draw(ctx, 'START A NEW GAME?', VIEW_W / 2, 90, '#ffe680', { align: 'center', shadow: '#061040' });
-      FONT.draw(ctx, 'YOUR SAVED PROGRESS WILL BE ERASED.', VIEW_W / 2, 103, '#ffffff', { align: 'center', shadow: '#061040' });
+      FONT.draw(ctx, 'LEVEL PROGRESS RESTARTS. AWARDS STAY.', VIEW_W / 2, 103, '#ffffff', { align: 'center', shadow: '#061040' });
       FONT.draw(ctx, 'Z / ENTER = YES      X / ESC = NO', VIEW_W / 2, 118, '#b5ecfc', { align: 'center', shadow: '#061040' });
     }
     FONT.draw(ctx, 'ARROWS + Z TO SELECT', 8, VIEW_H - 12, '#ffffff', { shadow: '#061040' });
-    if (this.save.finished) FONT.draw(ctx, '* GAME COMPLETED *', VIEW_W - 8, VIEW_H - 22, '#ffe680', { align: 'right', shadow: '#061040' });
-    FONT.draw(ctx, 'V' + GAME_VERSION, VIEW_W - 8, VIEW_H - 12, '#ffffff', { align: 'right', shadow: '#061040' });
+    if (this.meta.finished && !this.sub) FONT.draw(ctx, this.meta.hardDone ? '* HARD MODE COMPLETED *' : '* GAME COMPLETED *', VIEW_W - 8, VIEW_H - 22, '#ffe680', { align: 'right', shadow: '#061040' });
+    if (!this.sub) FONT.draw(ctx, 'V' + GAME_VERSION, VIEW_W - 8, VIEW_H - 12, '#ffffff', { align: 'right', shadow: '#061040' });
   };
 
   const THEME_TINT = { meadow: '#4cc04a', hills: '#ff9a5a', city: '#8a8aa8', duct: '#5a7ab8', filter: '#c8b070', ice: '#8ad4ff', drain: '#6ab040', compressor: '#f07a30', factory: '#b06a48', sky: '#b08ae8' };
