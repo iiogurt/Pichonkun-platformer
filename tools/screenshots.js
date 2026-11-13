@@ -48,6 +48,7 @@ const SHOTS = {
     if (e) { e.x = p.x + 90; e.y = p.y - 24; e.ox = e.x; e.oy = e.y; }
     T.step(50, i => { p.inv = 2; if (i === 44) Input.pressed.add('shoot'); });
   },
+  'game-over': () => { GAME.save.hard = false; T.play(2); T.bot(120, { god: true }); GAME.gameOver(); T.step(60); },
   'backup': () => { GAME.save.started = true; GAME.state = 'title'; GAME.sub = 'backup'; GAME.menu = 0; GAME.backupMsg = ''; T.step(20); },
   'secret-room': () => {
     T.play(3); const w = GAME.world, p = w.player; w.enemies = [];

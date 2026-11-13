@@ -54,6 +54,7 @@
       case 'intro': this.drawWorld(); this.drawIntro(); break;
       case 'play': this.drawWorld(); this.drawHUD(); if (this.riddle) this.drawRiddle(); break;
       case 'pause': this.drawWorld(); this.drawHUD(); this.drawPause(); break;
+      case 'gameover': this.drawWorld(); this.drawHUD(); this.drawGameOver(); break;
       case 'clear': this.drawWorld(); this.drawClear(); break;
       case 'name': if (this.tally) { this.drawWorld(); this.drawClear(); } else this.drawScene(0.6); this.drawName(); break;
       case 'board': this.drawBoard(); break;
@@ -674,6 +675,24 @@
     ctx.globalAlpha = 1;
   };
 
+  G.drawGameOver = function () {
+    const ctx = this.ctx, T = this.overT, a = Math.min(1, T / 30);
+    ctx.fillStyle = `rgba(4,6,26,${0.74 * a})`; ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+    ctx.globalAlpha = a;
+    const drop = Math.round((1 - Math.min(1, T / 22)) * -40);
+    FONT.draw(ctx, 'GAME OVER', VIEW_W / 2, 38 + drop, '#ff7a6a', { align: 'center', scale: 4, shadow: '#3a0606' });
+    ctx.globalAlpha = 0.45 * a;
+    for (let i = 0; i < this.world.player.maxHp; i++) drawSpr(ctx, SPR.heart, VIEW_W / 2 - this.world.player.maxHp * 7 + i * 14, 84, false, 1.2);
+    ctx.globalAlpha = a;
+    FONT.draw(ctx, 'ALL HEARTS LOST!', VIEW_W / 2, 104, '#ffffff', { align: 'center', shadow: '#000' });
+    if (T >= 40) {
+      this.panel(VIEW_W / 2 - 104, 124, 208, 44);
+      this.drawMenu(['TRY AGAIN FROM CHECKPOINT', 'QUIT TO TITLE'], this.overSel, VIEW_W / 2 - 88, 134, 190);
+      FONT.draw(ctx, 'YOUR SCORE AND CRYSTALS ARE KEPT.', VIEW_W / 2, 180, '#b5ecfc', { align: 'center', shadow: '#000' });
+    }
+    ctx.globalAlpha = 1;
+  };
+
   // leaderboard name entry (typed)
   G.drawName = function () {
     const ctx = this.ctx, e = this.nameEdit;
@@ -746,10 +765,22 @@
   // ---------------------------------------------------------------- title
   let LOGO = null;
   function buildLogo() {
-    const W = 580, H = 112, sc = 10, text = 'PICHONKUN';
+    const H = 112, sc = 10, text = 'PICHONKUN', gap = sc;
+    // The font is monospaced, which leaves wide holes around narrow letters like "I".
+    // Trim every letter to its inked width and set them with one even gap instead.
+    const cell = 7 * sc, glyphs = [...text].map(ch => {
+      const c = GFX.canvas(cell, 9 * sc), g = c.getContext('2d');
+      FONT.draw(g, ch, 0, 0, '#ffffff', { scale: sc });
+      const d = g.getImageData(0, 0, c.width, c.height).data;
+      let x0 = c.width, x1 = -1;
+      for (let x = 0; x < c.width; x++) for (let y = 0; y < c.height; y++) if (d[(y * c.width + x) * 4 + 3] > 0) { if (x < x0) x0 = x; if (x > x1) x1 = x; }
+      return { c, x0, w: x1 - x0 + 1 };
+    });
+    const W = Math.ceil((32 + glyphs.reduce((n, gl) => n + gl.w, 0) + gap * (glyphs.length - 1)) / 4) * 4;   // whole screen pixels at half size
     const mask = GFX.canvas(W, H), mg = mask.getContext('2d');
     mg.imageSmoothingEnabled = false;
-    FONT.draw(mg, text, 16, 14, '#ffffff', { scale: sc });
+    let lx = 16;
+    for (const gl of glyphs) { mg.drawImage(gl.c, gl.x0, 0, gl.w, gl.c.height, lx, 14, gl.w, gl.c.height); lx += gl.w + gap; }
     const fill = GFX.canvas(W, H), fg = fill.getContext('2d');
     fg.drawImage(mask, 0, 0);
     fg.globalCompositeOperation = 'source-in';
@@ -768,7 +799,8 @@
   G.drawLogo = function (cx, y) {
     if (!LOGO) buildLogo();
     const ctx = this.ctx, w = LOGO.W / 2, h = LOGO.H / 2;
-    ctx.drawImage(LOGO.out, cx - w / 2, y, w, h);
+    const lx = Math.round(cx - w / 2);
+    ctx.drawImage(LOGO.out, lx, y, w, h);
     // moving shine, clipped to the letters
     const tg = LOGO.tmp.getContext('2d');
     tg.globalCompositeOperation = 'source-over'; tg.clearRect(0, 0, LOGO.W, LOGO.H);
@@ -778,7 +810,7 @@
     const gr = tg.createLinearGradient(sx, 0, sx + 90, 60);
     gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.5, 'rgba(255,255,255,0.85)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
     tg.fillStyle = gr; tg.fillRect(0, 0, LOGO.W, LOGO.H);
-    ctx.drawImage(LOGO.tmp, cx - w / 2, y, w, h);
+    ctx.drawImage(LOGO.tmp, lx, y, w, h);
   };
 
   let SCENE = null; // small painted diorama used behind the title/level-select
@@ -855,7 +887,7 @@
       const it = items[this.menu];
       const tip = this.backupMsg || (it.startsWith('SAVE') ? `ONE FILE WITH YOUR ADVENTURE, SCORES AND AWARDS. LAST BACKUP: ${this.meta.lastBackup || 'NEVER'}`
         : it.startsWith('LOAD') ? 'CHOOSE A BACKUP FILE. IT REPLACES THE PROGRESS IN THIS BROWSER.'
-          : it.startsWith('RESTORE') ? 'BRING BACK THE ADVENTURE THAT WAS REPLACED BY NEW GAME.' : '');
+          : it.startsWith('UNDO') ? 'BRING BACK THE ADVENTURE THAT WAS REPLACED BY NEW GAME.' : '');
       if (tip) { this.panel(8, 150, 196, 44, 0.9); FONT.wrap(tip, 30).forEach((l, i) => FONT.draw(ctx, l, 16, 156 + i * 9, this.backupMsg ? '#ffe680' : '#b5ecfc', { shadow: '#061040' })); }
     }
     if (this.confirmErase) {
