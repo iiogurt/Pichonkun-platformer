@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.3] - 2026-11-16
+
+### Fixed
+
+- Pichonkun's body looked as if seen from behind while the face looked forward, so running read as
+  walking backward. The arm and leg nearest the viewer now sit on the back side and overlap the
+  body, the far arm is tucked behind the chest, and the torso sits a little forward under the face.
+
 ## [1.6.2] - 2026-11-16
 
 ### Fixed
@@ -229,7 +237,8 @@ First public release. Play it at https://iiogurt.github.io/Pichonkun-platformer/
 - Tooling: ESLint, a level-data validator, a headless Chrome smoke test and a screenshot generator.
 - GitHub Actions for CI, GitHub Pages deployment and tagged releases.
 
-[Unreleased]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.6.2...HEAD
+[Unreleased]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.6.3...HEAD
+[1.6.3]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.6.2...v1.6.3
 [1.6.2]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.6.1...v1.6.2
 [1.6.1]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.6.0...v1.6.1
 [1.6.0]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.5.1...v1.6.0

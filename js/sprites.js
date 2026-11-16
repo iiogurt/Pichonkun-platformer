@@ -97,11 +97,13 @@ const OUTL = { navy: [13, 27, 94], dark: [16, 12, 26] };
     const limb = (ax, ay, bx, by, r1, r2) => part(W, H, (x, y) => S.cone(x, y, ax, ay, r1, bx, by, r2), RAMPS.white,
       (x, y) => clamp(0.95 - (y - Math.min(ay, by)) * 0.07 + (x - ax) * 0.05), N, 0);
     const by0 = base - 9 + bob * 0.6;
-    const mkLeg = (side, l) => limb(cx - 0.5 + side * 2.6, base - 6 + bob * 0.3, cx - 0.5 + side * 2.6 + l[0], base - 2.2 - l[1], 2.2, 2.5);
-    const mkArm = (side, a) => limb(cx - 0.5 + side * 4.6, by0 - 1.5, cx - 0.5 + side * 4.6 + Math.sin(a) * 5.2, by0 - 1.5 + Math.cos(a) * 5.2, 1.8, 2.1);
+    // torso sits a little forward, under the face; the far shoulder (+x) is partly hidden
+    const bx = cx + 0.5, sh = side => bx + (side > 0 ? 3.6 : -4.6);
+    const mkLeg = (side, l) => limb(bx + side * 2.6, base - 6 + bob * 0.3, bx + side * 2.6 + l[0], base - 2.2 - l[1], 2.2, 2.5);
+    const mkArm = (side, a) => limb(sh(side), by0 - 1.5, sh(side) + Math.sin(a) * 5.2, by0 - 1.5 + Math.cos(a) * 5.2, 1.8, 2.1);
 
-    const body = part(W, H, (x, y) => S.box(x, y, cx - 0.5, by0, 4.8, 4.6, 3.2), RAMPS.white,
-      (x, y) => clamp(0.62 + (x - cx) * 0.06 - (y - by0) * 0.08), N, 0);
+    const body = part(W, H, (x, y) => S.box(x, y, bx, by0, 4.8, 4.6, 3.2), RAMPS.white,
+      (x, y) => clamp(0.62 + (x - bx) * 0.06 - (y - by0) * 0.08), N, 0);
 
     // head: a round droplet with a small soft tip (smooth union), in squash space
     const hshape = (X, Y) => S.sunion(S.circle(X, Y, 0, 0, R), S.cone(X, Y, 0, -7.5, 7, lean, -tipLen, 1.1), 3.5);
@@ -148,11 +150,14 @@ const OUTL = { navy: [13, 27, 94], dark: [16, 12, 26] };
     else stamp(['#..#..#', '.##.##.'], fx + 4, fy + 4);
 
     // the guardian angel wears feathered wings (behind the body)
-    const layers = [mkArm(-1, arms[1]), mkLeg(-1, legs[1]), mkLeg(1, legs[0]), body, head, mkArm(1, arms[0])];
+    // Three-quarter view facing right, turned toward the viewer: the limbs on the facing side
+    // (+x, arms[0]/legs[0]) are the far ones, tucked behind the body; the near limbs sit on
+    // the back side (-x) and overlap the body. The other way round reads as seen from behind.
+    const layers = [mkArm(1, arms[0]), mkLeg(1, legs[0]), mkLeg(-1, legs[1]), body, head, mkArm(-1, arms[1])];
     if (o.wings !== undefined) {
       const lift = [-4.5, -1.5, 3, -1.5][o.wings];
       const wing = (side, k) => {
-        const ax = cx - 0.5 + side * 4, ay = by0 - 3;
+        const ax = bx + side * 4, ay = by0 - 3;
         return part(W, H, (x, y) => Math.min(
           S.cone(x, y, ax, ay, 3 * k, ax + side * 16 * k, ay - 6 + lift, 1.9 * k),
           S.cone(x, y, ax, ay + 1.5, 2.8 * k, ax + side * 14 * k, ay + 0.5 + lift * 0.6, 1.7 * k),
