@@ -169,7 +169,8 @@ const OUTL = { navy: [13, 27, 94], dark: [16, 12, 26] };
     SPR.pichon_blink = pichon({ eyes: 'blink' });
     SPR.pichon_run = [0, 1, 2, 3, 4, 5, 6, 7].map(i => {
       const p = i / 8 * Math.PI * 2;
-      const leg = (ph) => [Math.cos(ph) * 4.6, Math.max(0, Math.sin(ph)) * 3.6];
+      // foot pushes back along the ground (cos falling), then lifts and swings forward (cos rising)
+      const leg = (ph) => [Math.cos(ph) * 4.6, Math.max(0, -Math.sin(ph)) * 3.6];
       return pichon({ legs: [leg(p), leg(p + Math.PI)], arms: [Math.cos(p + Math.PI) * 1.0, Math.cos(p) * 1.0], bob: -Math.abs(Math.sin(p)) * 1.6, lean: -3 - Math.sin(p * 2) * 0.8, sq: Math.sin(p * 2) * 0.1 });
     });
     SPR.pichon_jump = pichon({ sq: -0.42, legs: [[-1.5, 1.2], [-3, 0.2]], arms: [1.75, -1.8], lean: -1.5, tip: 21, eyes: 'open' });
