@@ -7,6 +7,7 @@ const gameGlobals = Object.fromEntries([
   'FONT', 'GFX', 'PAL', 'SPR', 'RAMPS', 'OUTL', 'THEMES', 'TILE', 'TERRAIN', 'BACKDROP', 'mkSpr', 'whiteVersion', 'drawSpr', 'buildSprites', 'hexRgb', 'AUDIO',
   'LEVELS', 'STORY_INTRO', 'STORY_ENDING', 'PORTRAITS', 'buildLevelGrid',
   'World', 'Player', 'ENEMY_DEFS', 'BOSS_INFO', 'makeEnemy', 'updateEnemy', 'makeBoss', 'updateBoss', 'overlap', 'walkBody',
+  'RUN_FRAMES', 'RUN_STANCE', 'RUN_STRIDE', 'RUN_ANIM',
   'GRAV', 'MAX_FALL', 'RUN_SPEED', 'JUMP_V', 'DJUMP_V', 'SPRING_V',
   'VIEW_W', 'VIEW_H', 'RES', 'SAVE_KEY', 'GAME_VERSION', 'CONFIRM', 'Input', 'Game', 'whiteOf', 'defaultSave', 'loadSave', 'writeSave',
   'META_KEY', 'defaultMeta', 'loadMeta', 'writeMeta', 'crystalsEver', 'achCount', 'ACHIEVEMENTS', 'SKINS', 'HARD', 'setSkin',

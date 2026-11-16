@@ -30,6 +30,7 @@ Suggestions are welcome: open an [issue](https://github.com/iiogurt/Pichonkun-pl
 - [ ] Level editor using the existing ASCII map format
 
 ## Done
+- [x] v1.6.2: run cycle rebuilt: forward lean, planted feet, 12 frames
 - [x] v1.6.1: walk cycle steps forward
 - [x] v1.6.0: quarter hearts, damage by enemy strength, small heals
 - [x] v1.5.0: splash power, the Pure Air meter, Angel as an earned perk that levels up, backup and restore

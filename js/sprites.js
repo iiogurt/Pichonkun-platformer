@@ -7,6 +7,9 @@ const PAL = {
   white: '#ffffff', gray: '#b4b4b4', black: '#000000', cream: '#fdf5e6',
 };
 const TILE = 16;
+// Hero run cycle: frames, share of the cycle a foot is planted, stride in art px (2x), and
+// animation frames advanced per logical px travelled (higher = less foot skating, faster legs).
+const RUN_FRAMES = 12, RUN_STANCE = 0.6, RUN_STRIDE = 13, RUN_ANIM = 0.6;
 const SPR = {};
 
 function hexRgb(h) { return GFX.rgb(h); }
@@ -167,11 +170,25 @@ const OUTL = { navy: [13, 27, 94], dark: [16, 12, 26] };
       return pichon({ sq: a * 0.14, bob: 0, arms: [0.28 + a * 0.08, -0.28 - a * 0.08], tip: 20.5 - a * 0.5 });
     });
     SPR.pichon_blink = pichon({ eyes: 'blink' });
-    SPR.pichon_run = [0, 1, 2, 3, 4, 5, 6, 7].map(i => {
-      const p = i / 8 * Math.PI * 2;
-      // foot pushes back along the ground (cos falling), then lifts and swings forward (cos rising)
-      const leg = (ph) => [Math.cos(ph) * 4.6, Math.max(0, -Math.sin(ph)) * 3.6];
-      return pichon({ legs: [leg(p), leg(p + Math.PI)], arms: [Math.cos(p + Math.PI) * 1.0, Math.cos(p) * 1.0], bob: -Math.abs(Math.sin(p)) * 1.6, lean: -3 - Math.sin(p * 2) * 0.8, sq: Math.sin(p * 2) * 0.1 });
+    // Run cycle (RUN_FRAMES frames). Each foot spends RUN_STANCE of the cycle planted, sliding
+    // straight back under the body, then lifts and swings forward. Pichonkun leans INTO the run;
+    // the frame rate is tied to speed in Player.update (RUN_ANIM) so planted feet barely skate.
+    const A = RUN_STRIDE / 2, ease = u => u * u * (3 - 2 * u);
+    const foot = t => {
+      t = ((t % 1) + 1) % 1;
+      if (t < RUN_STANCE) return [A - 2 * A * (t / RUN_STANCE), 0];
+      const u = (t - RUN_STANCE) / (1 - RUN_STANCE);
+      return [-A + 2 * A * ease(u), Math.sin(u * Math.PI) * 3.4];
+    };
+    SPR.pichon_run = Array.from({ length: RUN_FRAMES }, (_, i) => {
+      const t = i / RUN_FRAMES, near = foot(t), far = foot(t + 0.5);
+      const pass = Math.cos(t * Math.PI * 4);                 // +1 at foot contact, -1 at mid-stance
+      return pichon({
+        legs: [near, far],
+        arms: [-near[0] / A * 0.95, -far[0] / A * 0.95],      // each arm swings against its own-side leg
+        bob: -(1 - pass) * 0.8, sq: pass * 0.08,
+        lean: 3 + (1 - pass) * 0.6,
+      });
     });
     SPR.pichon_jump = pichon({ sq: -0.42, legs: [[-1.5, 1.2], [-3, 0.2]], arms: [1.75, -1.8], lean: -1.5, tip: 21, eyes: 'open' });
     SPR.pichon_fall = pichon({ sq: -0.12, legs: [[2.4, 1.5], [-2.6, 1.2]], arms: [1.95, -1.95], lean: 1, tip: 22.5, eyes: 'wide' });
