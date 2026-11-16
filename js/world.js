@@ -812,7 +812,7 @@ class Player {
         this.vy = -6.5; this.usedDouble = false; AUDIO.sfx('stomp'); W.damageBoss(1);
       } else this.hurt(b.x + b.w / 2 < this.x + this.w / 2 ? 1 : -1, HEALTH.boss);
     }
-    this.anim += Math.abs(this.vx) * 0.2;
+    this.anim += Math.abs(this.vx) * RUN_ANIM;
   }
   // quarters of a heart; hard mode adds one to everything
   cost(q) { return (q || 2) + (this.world.hard ? HEALTH.hardExtra : 0); }
