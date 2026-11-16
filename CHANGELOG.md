@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.1] - 2026-11-16
+
+### Fixed
+
+- Pichonkun no longer looks like walking backward: in the run cycle each foot now pushes back
+  along the ground and lifts while swinging forward, instead of the other way round.
+
 ## [1.6.0] - 2026-11-13
 
 ### Added
@@ -214,7 +221,8 @@ First public release. Play it at https://iiogurt.github.io/Pichonkun-platformer/
 - Tooling: ESLint, a level-data validator, a headless Chrome smoke test and a screenshot generator.
 - GitHub Actions for CI, GitHub Pages deployment and tagged releases.
 
-[Unreleased]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.6.0...HEAD
+[Unreleased]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.6.1...HEAD
+[1.6.1]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.6.0...v1.6.1
 [1.6.0]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.5.1...v1.6.0
 [1.5.1]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.4.0...v1.5.0
