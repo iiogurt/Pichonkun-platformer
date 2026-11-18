@@ -22,9 +22,12 @@ function findChrome() {
 
 function startServer() {
   const server = http.createServer((req, res) => {
-    const url = decodeURIComponent(req.url.split('?')[0]);
+    let url;
+    try { url = decodeURIComponent(req.url.split('?')[0]); } catch { res.writeHead(400); res.end(); return; }
     const file = path.join(ROOT, url === '/' ? 'index.html' : url);
-    if (!file.startsWith(ROOT) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) { res.writeHead(404); res.end(); return; }
+    // stay inside the project (the separator stops a sibling like "../Pichonkun-platformer-x") and never serve dotfiles such as .git
+    const rel = path.relative(ROOT, file);
+    if (!file.startsWith(ROOT + path.sep) || rel.split(path.sep).some(p => p.startsWith('.')) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) { res.writeHead(404); res.end(); return; }
     res.writeHead(200, { 'Content-Type': TYPES[path.extname(file)] || 'application/octet-stream' });
     fs.createReadStream(file).pipe(res);
   });

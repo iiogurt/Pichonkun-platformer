@@ -64,11 +64,13 @@ class World {
     }
     this.player = new Player(this, this.start.x, this.start.y);
     this.checkpoint = { x: this.start.x, y: this.start.y };
+    // a checkpoint outside the level (only possible from an edited save) falls back to the start
+    if (checkpoint && !(checkpoint.x >= 0 && checkpoint.x < this.pw && checkpoint.y >= 0 && checkpoint.y < this.ph)) checkpoint = null;
     if (checkpoint) {
       this.checkpoint = { x: checkpoint.x, y: checkpoint.y };
       this.player.x = checkpoint.x; this.player.y = checkpoint.y;
       for (const o of this.objects) if (o.type === 'checkpoint' && Math.abs(o.x - checkpoint.x) < 20) o.active = true;
-      if (checkpoint.solved) for (const r of checkpoint.solved) this.solveRiddle(r, true);
+      if (checkpoint.solved) for (const r of checkpoint.solved) if (this.riddles[r]) this.solveRiddle(r, true);
       if (checkpoint.levers) this.openDoors(true);
       if (checkpoint.collected) {
         for (const o of this.objects) if (o.type === 'drop' && checkpoint.collected.includes(o.id)) { o.dead = true; this.drops++; }

@@ -58,10 +58,73 @@ const newRun = () => ({ score: 0, time: 0, hits: 0, deaths: 0, kills: [], crysta
 function defaultSave() {
   return { unlocked: 1, level: 0, cp: null, vapor: false, best: {}, hi: {}, cry: {}, name: '', runId: newRunId(), hard: false, air: 0, angelXp: 0, stats: { kills: 0, deaths: 0, hits: 0 }, started: false, finished: false, music: true, sfx: true, gfx: 'high', gfxAuto: true };
 }
+// --- Stored data is untrusted (it may come from an imported backup file), so it is
+// rebuilt field by field: wrong types fall back to defaults and unknown keys are dropped.
+// A bad file can then never stop the game from starting.
+const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
+const num = (v, d = 0, lo = -Infinity, hi = Infinity) => (typeof v === 'number' && Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : d);
+const int = (v, d, lo, hi) => Math.floor(num(v, d, lo, hi));
+const bool = (v, d = false) => (typeof v === 'boolean' ? v : d);
+const str = (v, max, d = '') => (typeof v === 'string' ? v.slice(0, max) : d);
+const cleanName = (v) => [...str(v, NAME_MAX * 4).toUpperCase()].filter(c => NAME_CHARS.includes(c)).join('').slice(0, NAME_MAX);
+const scalarList = (v, max = 500) => (Array.isArray(v) ? v.filter(x => typeof x === 'string' || (typeof x === 'number' && Number.isFinite(x))).slice(0, max) : []);
+const levelIdx = (k) => { const i = Number(k); return Number.isInteger(i) && i >= 0 && i < LEVELS.length ? i : -1; };
+// Keep only level-indexed entries ("0".."9") whose value passes `fn` (which returns undefined to drop).
+function perLevel(v, fn) {
+  const out = {};
+  if (!isObj(v)) return out;
+  for (const k of Object.keys(v)) {
+    if (levelIdx(k) < 0) continue;
+    const c = fn(v[k]);
+    if (c !== undefined) out[levelIdx(k)] = c;
+  }
+  return out;
+}
+function cleanRun(r) {
+  const d = newRun();
+  if (!isObj(r)) return d;
+  for (const k of ['score', 'time', 'hits', 'deaths', 'leverMiss', 'bossDmg', 'bossHurt', 'bestCombo']) d[k] = num(r[k], 0, 0);
+  for (const k of ['kills', 'crystals', 'secrets']) d[k] = scalarList(r[k]);
+  d.boss = bool(r.boss);
+  if (isObj(r.miss)) for (const k of Object.keys(r.miss).slice(0, 500)) if (typeof r.miss[k] === 'number' && Number.isFinite(r.miss[k])) d.miss[k] = r.miss[k];
+  return d;
+}
+function cleanCheckpoint(cp) {
+  if (!isObj(cp) || !Number.isFinite(cp.x) || !Number.isFinite(cp.y)) return null;
+  return {
+    x: cp.x, y: cp.y,
+    solved: Array.isArray(cp.solved) ? cp.solved.filter(Number.isInteger) : [],
+    levers: bool(cp.levers),
+    collected: scalarList(cp.collected, 2000),
+    run: cleanRun(cp.run),
+  };
+}
+function cleanSave(s) {
+  if (!isObj(s) || typeof s.unlocked !== 'number') return null;
+  const d = defaultSave();
+  d.unlocked = int(s.unlocked, 1, 1, LEVELS.length);
+  d.level = int(s.level, 0, 0, LEVELS.length - 1);
+  d.cp = cleanCheckpoint(s.cp);
+  d.best = perLevel(s.best, v => (Number.isFinite(v) ? Math.max(0, Math.floor(v)) : undefined));
+  d.hi = perLevel(s.hi, v => (isObj(v) && Number.isFinite(v.score)
+    ? { score: Math.max(0, Math.floor(v.score)), rank: typeof v.rank === 'string' && v.rank.length === 1 && 'SABCD'.includes(v.rank) ? v.rank : 'D', time: int(v.time, 0, 0) }
+    : undefined));
+  d.cry = perLevel(s.cry, v => (Array.isArray(v) ? scalarList(v, 50) : undefined));
+  d.name = cleanName(s.name);
+  if (typeof s.lastName === 'string') d.lastName = cleanName(s.lastName);
+  d.runId = str(s.runId, 40) || d.runId;
+  d.air = num(s.air, 0, 0); d.angelXp = num(s.angelXp, 0, 0);
+  const st = isObj(s.stats) ? s.stats : {};
+  d.stats = { kills: num(st.kills, 0, 0), deaths: num(st.deaths, 0, 0), hits: num(st.hits, 0, 0) };
+  for (const k of ['vapor', 'hard', 'started', 'finished']) d[k] = bool(s[k]);
+  for (const k of ['music', 'sfx', 'gfxAuto']) d[k] = bool(s[k], d[k]);
+  d.gfx = s.gfx === 'low' ? 'low' : 'high';
+  return d;
+}
 function loadSave() {
   try {
-    const s = JSON.parse(localStorage.getItem(SAVE_KEY));
-    if (s && typeof s.unlocked === 'number') return Object.assign(defaultSave(), s);
+    const s = cleanSave(JSON.parse(localStorage.getItem(SAVE_KEY)));
+    if (s) return s;
   } catch { /* corrupt or unavailable storage: start fresh */ }
   return defaultSave();
 }
@@ -73,10 +136,21 @@ function writeSave(s) { try { localStorage.setItem(SAVE_KEY, JSON.stringify(s));
 const BOARD_SIZE = 10;
 const BOARD_SEED = [['GRANNY', 60000], ['LEAFA', 48000], ['P. MESH', 38000], ['FROSTY', 29000], ['BUZZBY', 21000], ['BARON', 14000], ['QUEEN', 8000], ['SMOGMAW', 3000]];
 const NAME_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .-!', NAME_MAX = 8;
+// A stored or imported table, rebuilt with known fields only; null if it is not a table at all.
+function cleanBoard(b) {
+  if (!Array.isArray(b) || !b.every(e => isObj(e) && typeof e.name === 'string' && Number.isFinite(e.score))) return null;
+  return b.slice(0, BOARD_SIZE).map(e => {
+    const r = { name: e.npc ? str(e.name, 20) : cleanName(e.name), score: Math.max(0, Math.floor(e.score)), cleared: int(e.cleared, 0, 0, LEVELS.length), npc: bool(e.npc) };
+    if ('hard' in e) r.hard = bool(e.hard);
+    if (typeof e.id === 'string') r.id = e.id.slice(0, 40);
+    if (!r.npc) delete r.npc;
+    return r;
+  });
+}
 function loadBoard() {
   try {
-    const b = JSON.parse(localStorage.getItem(BOARD_KEY));
-    if (Array.isArray(b) && b.every(e => e && typeof e.name === 'string' && typeof e.score === 'number')) {
+    const b = cleanBoard(JSON.parse(localStorage.getItem(BOARD_KEY)));
+    if (b) {
       // residents keep their current (longer) names even on boards stored by older versions
       for (const e of b) if (e.npc) e.name = (BOARD_SEED.find(s => s[1] === e.score) || [e.name])[0];
       return b;
@@ -217,14 +291,15 @@ class Game {
   }
   // Returns '' on success or a short reason. Nothing is written unless the whole file is valid.
   importData(d) {
-    if (!d || d.app !== 'pichonkun' || !d.save || typeof d.save.unlocked !== 'number' || typeof d.save.hi !== 'object') return 'NOT A PICHONKUN BACKUP';
+    if (!isObj(d) || d.app !== 'pichonkun' || !isObj(d.save) || typeof d.save.unlocked !== 'number' || !isObj(d.save.hi)) return 'NOT A PICHONKUN BACKUP';
     if (d.format !== 1) return 'BACKUP IS FROM A NEWER VERSION';
-    if (d.board && !(Array.isArray(d.board) && d.board.every(e => e && typeof e.name === 'string' && typeof e.score === 'number'))) return 'BACKUP IS DAMAGED';
-    if (d.meta && (typeof d.meta !== 'object' || typeof d.meta.ach !== 'object')) return 'BACKUP IS DAMAGED';
+    const board = d.board === undefined ? undefined : cleanBoard(d.board);
+    const meta = d.meta === undefined ? undefined : cleanMeta(d.meta);
+    if (board === null || meta === null) return 'BACKUP IS DAMAGED';
     if (this.save.started) { try { localStorage.setItem(PREV_KEY, JSON.stringify(this.save)); } catch { /* storage full or blocked */ } }
-    writeSave(Object.assign(defaultSave(), d.save));
-    if (d.board) writeBoard(d.board.slice(0, BOARD_SIZE).map(e => ({ id: e.id, name: String(e.name).slice(0, NAME_MAX), score: e.score, cleared: e.cleared | 0, hard: !!e.hard, npc: !!e.npc })));
-    if (d.meta) writeMeta(Object.assign(defaultMeta(), d.meta));
+    writeSave(cleanSave(d.save));
+    if (board) writeBoard(board);
+    if (meta) writeMeta(meta);
     this.reloadFromStorage();
     return '';
   }
@@ -266,9 +341,10 @@ class Game {
   restorePrevious() {
     let prev = null;
     try { prev = JSON.parse(localStorage.getItem(PREV_KEY)); } catch { /* corrupt: treated as missing */ }
-    if (!prev || typeof prev.unlocked !== 'number') { this.backupMsg = 'NOTHING TO RESTORE'; return; }
+    prev = cleanSave(prev);
+    if (!prev) { this.backupMsg = 'NOTHING TO RESTORE'; return; }
     try { localStorage.setItem(PREV_KEY, JSON.stringify(this.save)); } catch { /* storage full or blocked */ }
-    writeSave(Object.assign(defaultSave(), prev));
+    writeSave(prev);
     this.reloadFromStorage();
     this.backupMsg = 'LAST ADVENTURE RESTORED!'; this.menu = 0;
     AUDIO.sfx('right');

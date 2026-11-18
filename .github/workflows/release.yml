@@ -5,15 +5,18 @@ on:
     tags: ['v*.*.*']
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  release:
+  # Tests run third-party dev dependencies, so this job only gets a read-only token.
+  build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 22
           cache: npm
@@ -50,10 +53,30 @@ jobs:
           ' CHANGELOG.md > notes.md
           printf '\n**Play online:** https://%s.github.io/%s/\n' "${GITHUB_REPOSITORY_OWNER}" "${GITHUB_REPOSITORY#*/}" >> notes.md
           cat notes.md
+          mv notes.md dist/
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: release
+          path: |
+            dist/*.zip
+            dist/notes.md
+          if-no-files-found: error
+
+  # Publishing is the only step that can write to the repository, and it runs no project code.
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: release
 
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" "dist/pichonkun-${GITHUB_REF_NAME}.zip" \
-            --title "Pichonkun ${GITHUB_REF_NAME}" --notes-file notes.md --verify-tag
+          gh release create "$GITHUB_REF_NAME" "pichonkun-${GITHUB_REF_NAME}.zip" \
+            --repo "$GITHUB_REPOSITORY" --title "Pichonkun ${GITHUB_REF_NAME}" --notes-file notes.md --verify-tag
