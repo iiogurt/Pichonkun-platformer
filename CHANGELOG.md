@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- A crafted backup file could make the game crash on every start until browser data was cleared.
+  Saves, achievements and the leaderboard are now checked field by field whenever they are loaded,
+  imported or restored: wrong values fall back to defaults, names keep to the allowed 8 characters,
+  and saves already damaged this way load again.
+- The page now sets a strict Content-Security-Policy and sends no referrer.
+- Workflows: actions pinned to commit SHAs, checkout does not keep the token, Pages permissions are
+  per job, and releases are built with a read-only token and published by a separate job.
+- The local test server no longer serves files outside the project or dotfiles such as `.git`.
+- Updated dev dependencies to clear `npm audit` advisories (minimatch via eslint).
+
 ## [1.6.3] - 2026-11-16
 
 ### Fixed

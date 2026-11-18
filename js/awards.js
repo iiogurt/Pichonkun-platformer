@@ -5,10 +5,28 @@ const META_KEY = 'pichonkun_meta_v1';
 function defaultMeta() {
   return { ach: {}, cry: {}, kills: 0, finished: false, hardDone: false, skin: 'blue', skins: ['blue'] };
 }
+// Rebuild stored/imported progress from known fields only (see cleanSave in game.js); null if unusable.
+function cleanMeta(m) {
+  if (!m || typeof m !== 'object' || Array.isArray(m) || !m.ach || typeof m.ach !== 'object') return null;
+  const d = defaultMeta();
+  for (const [id] of ACHIEVEMENTS) if (m.ach[id]) d.ach[id] = 1;
+  if (m.cry && typeof m.cry === 'object') {
+    for (const k of Object.keys(m.cry)) {
+      const i = Number(k);
+      if (Number.isInteger(i) && i >= 0 && i < LEVELS.length && Array.isArray(m.cry[k])) d.cry[i] = m.cry[k].filter(x => typeof x === 'string' || Number.isFinite(x)).slice(0, 50);
+    }
+  }
+  d.kills = Number.isFinite(m.kills) ? Math.max(0, m.kills) : 0;
+  d.finished = m.finished === true; d.hardDone = m.hardDone === true;
+  if (Array.isArray(m.skins)) d.skins = [...new Set(['blue', ...m.skins.filter(id => SKINS.some(s => s[0] === id))])];
+  if (d.skins.includes(m.skin)) d.skin = m.skin;
+  if (typeof m.lastBackup === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(m.lastBackup)) d.lastBackup = m.lastBackup;
+  return d;
+}
 function loadMeta() {
   try {
-    const m = JSON.parse(localStorage.getItem(META_KEY));
-    if (m && typeof m === 'object' && m.ach) return Object.assign(defaultMeta(), m);
+    const m = cleanMeta(JSON.parse(localStorage.getItem(META_KEY)));
+    if (m) return m;
   } catch { /* corrupt or unavailable storage: start fresh */ }
   return defaultMeta();
 }

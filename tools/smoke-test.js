@@ -363,6 +363,32 @@ test('backup: export and import round-trip, bad files rejected, New Game can be 
   assert.ok(r.items.every(i => i.length <= 19), 'a menu label is too long for the panel');
 });
 
+test('backup: a crafted file or corrupt storage cannot break the game', async page => {
+  const r = await page.evaluate(() => {
+    localStorage.clear(); GAME.save = defaultSave(); GAME.meta = defaultMeta(); GAME.toasts = []; Input.down.clear(); GAME.dialog = null;
+    const err = GAME.importData({
+      app: 'pichonkun', format: 1,
+      save: JSON.parse('{"__proto__":{"x":1},"unlocked":1e9,"level":999,"started":true,"hi":{"0":null,"zz":{"score":1}},"cry":{"0":5},"name":"<b>long name here</b>","gfx":"x","cp":{"x":1e9,"y":-1e9,"solved":[99],"collected":7,"run":{"miss":null}}}'),
+      meta: { ach: { nope: 1, crystal1: 1 }, cry: null, skins: 'gold', skin: 'gold' },
+      board: [{ name: 'X'.repeat(500), score: 5 }],
+    });
+    // data written straight to storage (e.g. by an older version) is cleaned the same way
+    localStorage.setItem(META_KEY, JSON.stringify({ ach: {}, cry: { 0: 5 }, skins: 7 }));
+    const out = { err };
+    try {
+      GAME.reloadFromStorage(); boardSubmit(GAME.save);
+      GAME.startLevel(GAME.save.level, GAME.save.cp); T.step(5);
+      GAME.state = 'title'; GAME.render();
+      Object.assign(out, { level: GAME.save.level, unlocked: GAME.save.unlocked, name: GAME.save.name, gfx: GAME.save.gfx,
+        hi: Object.keys(GAME.save.hi), skin: GAME.meta.skin, inLevel: GAME.world.player.y > 0 && GAME.world.player.y < GAME.world.ph, polluted: 'x' in GAME.save || 'x' in {}, board: loadBoard().every(e => e.name.length <= 8) });
+    } catch (e) { out.crash = e.message; }
+    return out;
+  });
+  assert.strictEqual(r.crash, undefined, 'game crashed: ' + r.crash);
+  assert.strictEqual(r.err, '');
+  assert.deepStrictEqual(r, { err: '', level: 9, unlocked: 10, name: 'BLONG NA', gfx: 'high', hi: [], skin: 'blue', inLevel: true, polluted: false, board: true });
+});
+
 test('health: hearts have quarters, stronger enemies take more, small heals, then GAME OVER', async page => {
   const r = await page.evaluate(() => {
     localStorage.clear(); GAME.save = defaultSave(); GAME.meta = defaultMeta(); GAME.toasts = []; Input.down.clear(); GAME.dialog = null;
