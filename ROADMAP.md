@@ -30,6 +30,7 @@ Suggestions are welcome: open an [issue](https://github.com/iiogurt/Pichonkun-pl
 - [ ] Level editor using the existing ASCII map format
 
 ## Done
+- [x] v1.6.4: security hardening: safe backup import, Content-Security-Policy, tighter workflows
 - [x] v1.6.3: body turned toward the viewer, matching the face
 - [x] v1.6.2: run cycle rebuilt: forward lean, planted feet, 12 frames
 - [x] v1.6.1: walk cycle steps forward

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.4] - 2026-11-19
+
 ### Security
 
 - A crafted backup file could make the game crash on every start until browser data was cleared.
@@ -249,7 +251,8 @@ First public release. Play it at https://iiogurt.github.io/Pichonkun-platformer/
 - Tooling: ESLint, a level-data validator, a headless Chrome smoke test and a screenshot generator.
 - GitHub Actions for CI, GitHub Pages deployment and tagged releases.
 
-[Unreleased]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.6.3...HEAD
+[Unreleased]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.6.4...HEAD
+[1.6.4]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.6.3...v1.6.4
 [1.6.3]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.6.2...v1.6.3
 [1.6.2]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.6.1...v1.6.2
 [1.6.1]: https://github.com/iiogurt/Pichonkun-platformer/compare/v1.6.0...v1.6.1
