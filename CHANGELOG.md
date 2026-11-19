@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- A media kit in `media-kit/` for social-media videos: character boards, a vertical cast poster,
+  transparent sprites and animated GIFs rendered from the game's code, a graphics design guide,
+  and the world and story write-up.
+
 ## [1.6.4] - 2026-11-19
 
 ### Security
