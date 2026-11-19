@@ -27,7 +27,7 @@ module.exports = [
     },
   },
   {
-    files: ['tools/**/*.js', 'eslint.config.js'],
+    files: ['tools/**/*.js', 'media-kit/**/*.js', 'eslint.config.js'],
     languageOptions: { ecmaVersion: 2022, sourceType: 'commonjs', globals: { ...globals.node, ...globals.browser, ...gameGlobals, T: 'writable', GAME: 'writable' } },
   },
 ];
